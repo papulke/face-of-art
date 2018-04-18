@@ -414,7 +414,6 @@ class DeepHeatmapsModel(object):
 
             with tf.Session(config=self.config) as sess:
 
-                # initialize G and D
                 tf.global_variables_initializer().run()
 
                 # create model saver and file writer
