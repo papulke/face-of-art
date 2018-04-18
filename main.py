@@ -1,11 +1,17 @@
 import tensorflow as tf
-from deep_heatmaps_model_ect import DeepHeatmapsModel
+from deep_heatmaps_model_primary import DeepHeatmapsModel
+
+
+data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
+
 
 flags = tf.app.flags
 flags.DEFINE_string('mode', 'TRAIN', "'TRAIN' or 'TEST'")
 flags.DEFINE_string('save_model_path', 'model', "directory for saving the model")
 flags.DEFINE_string('save_sample_path', 'sample', "directory for saving the sampled images")
 flags.DEFINE_string('save_log_path', 'logs', "directory for saving the log file")
+flags.DEFINE_string('img_path', data_dir, "data directory")
+
 FLAGS = flags.FLAGS
 
 
@@ -19,11 +25,10 @@ def main(_):
     if not tf.gfile.Exists(FLAGS.save_log_path):
         tf.gfile.MakeDirs(FLAGS.save_log_path)
 
-    model = DeepHeatmapsModel(mode=FLAGS.mode, train_iter=100, learning_rate=0.001, image_size=256, c_dim=3,
-                              batch_size=4, num_landmarks=68,
-                              img_path='/Users/arik/Desktop/DATA/face_data/conventional_landmark_detection_dataset',
+    model = DeepHeatmapsModel(mode=FLAGS.mode, train_iter=80000, learning_rate=1e-4, image_size=256, c_dim=3,batch_size=10,
+                              num_landmarks=68, augment=False, img_path=FLAGS.img_path,
                               save_log_path=FLAGS.save_log_path, save_sample_path=FLAGS.save_sample_path,
-                              save_model_path=FLAGS.save_model_path, test_model_path = 'model/deep_heatmaps-1000')
+                              save_model_path=FLAGS.save_model_path, test_model_path = 'model/deep_heatmaps_prim-1000')
 
     if FLAGS.mode == 'TRAIN':
         model.train()

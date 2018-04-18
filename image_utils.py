@@ -104,7 +104,7 @@ def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=
 
 
 def load_menpo_image_list(img_dir, mode, bb_dictionary=None, image_size=256, margin=0.25, bb_type='gt',
-                          test_data='full'):
+                          test_data='full', augment=True):
     def crop_to_face_image_gt(img, bb_dictionary=bb_dictionary, margin=margin, image_size=image_size):
         return crop_to_face_image(img, bb_dictionary, gt=True, margin=margin, image_size=image_size)
 
@@ -124,7 +124,7 @@ def load_menpo_image_list(img_dir, mode, bb_dictionary=None, image_size=256, mar
     else:
         face_crop_image_list = image_menpo_list.map(crop_to_face_image_init)
 
-    if mode is 'TRAIN':
+    if mode is 'TRAIN' and augment:
         out_image_list = face_crop_image_list.map(augment_face_image)
     else:
         out_image_list = face_crop_image_list
@@ -153,14 +153,19 @@ def create_heat_maps(landmarks, num_landmarks=68, image_size=256, sigma=6):
     return maps
 
 
-def load_data(img_list, batch_inds, image_size=256, c_dim=3, num_landmarks=68, sigma=6, scale='255', save_landmarks=False):
+def load_data(img_list, batch_inds, image_size=256, c_dim=3, num_landmarks=68 , sigma=6, scale='255',
+              save_landmarks=False, primary=False):
 
     num_inputs = len(batch_inds)
     batch_menpo_images = img_list[batch_inds]
 
     images = np.zeros([num_inputs, image_size, image_size, c_dim]).astype('float32')
-    maps = np.zeros([num_inputs, image_size, image_size, num_landmarks]).astype('float32')
-    maps_small = np.zeros([num_inputs, image_size / 4, image_size / 4, num_landmarks]).astype('float32')
+    maps_small = np.zeros([num_inputs, image_size/4, image_size/4, num_landmarks]).astype('float32')
+
+    if primary:
+        maps = None
+    else:
+        maps = np.zeros([num_inputs, image_size, image_size, num_landmarks]).astype('float32')
 
     if save_landmarks:
         landmarks = np.zeros([num_inputs, num_landmarks, 2]).astype('float32')
@@ -168,33 +173,26 @@ def load_data(img_list, batch_inds, image_size=256, c_dim=3, num_landmarks=68, s
         landmarks = None
 
     for ind, img in enumerate(batch_menpo_images):
-        lms = img.landmarks['PTS'].points
+
         images[ind, :, :, :] = np.rollaxis(img.pixels, 0, 3)
-        maps[ind, :, :, :] = create_heat_maps(lms, num_landmarks, image_size, sigma)
-        maps_small[ind, :, :, :] = zoom(maps[ind, :, :, :], (0.25, 0.25, 1))
+
+        if primary:
+            lms = img.resize([image_size/4,image_size/4]).landmarks['PTS'].points
+            maps_small[ind, :, :, :] = create_heat_maps(lms, num_landmarks, image_size/4, sigma)
+        else:
+            lms = img.landmarks['PTS'].points
+            maps[ind, :, :, :] = create_heat_maps(lms, num_landmarks, image_size, sigma)
+            maps_small[ind, :, :, :]=zoom(maps[ind, :, :, :],(0.25,0.25,1))
+
         if save_landmarks:
             landmarks[ind, :, :] = lms
 
     if scale is '255':
         images *= 255  # SAME AS ECT?
-    elif scale is 'zero_center':
+    elif scale is '0':
         images = 2 * images - 1
 
     return images, maps, maps_small, landmarks
-
-
-def heat_maps_to_image(maps, landmarks, image_size=256):
-
-    x, y = np.mgrid[0:image_size, 0:image_size]
-
-    pixel_dist = np.sqrt(
-        np.square(np.expand_dims(x, 2) - landmarks[:, 0]) + np.square(np.expand_dims(y, 2) - landmarks[:, 1]))
-
-    nn_landmark = np.argmin(pixel_dist, 2)
-
-    map_image = maps[x, y, nn_landmark]
-
-    return map_image
 
 
 def heat_maps_to_image(maps, landmarks=None, image_size=256, num_landmarks=68):
@@ -210,6 +208,7 @@ def heat_maps_to_image(maps, landmarks=None, image_size=256, num_landmarks=68):
     nn_landmark = np.argmin(pixel_dist, 2)
 
     map_image = maps[x, y, nn_landmark]
+    map_image = (map_image-map_image.min())/(map_image.max()-map_image.min())  # normalize for visualization
 
     return map_image
 
@@ -232,10 +231,10 @@ def print_training_params_to_file(init_locals):
             f.write('* %s: %s\n' % (key, value))
 
 
-def create_img_with_landmarks(image, landmarks, image_size=256, num_landmarks=68, scale='255'):
+def create_img_with_landmarks(image, landmarks, image_size=256, num_landmarks=68, scale='255', circle_size=2):
     image = image.reshape(image_size, image_size, -1)
 
-    if scale is 'zero_center':
+    if scale is '0':
         image = 127.5 * (image + 1)
     elif scale is '1':
         image *= 255
@@ -244,19 +243,21 @@ def create_img_with_landmarks(image, landmarks, image_size=256, num_landmarks=68
     landmarks = np.clip(landmarks, 0, image_size)
 
     for (y, x) in landmarks.astype('int'):
-        cv2.circle(image, (x, y), 1, (255, 0, 0), -1)
+        cv2.circle(image, (x, y), circle_size, (255, 0, 0), -1)
 
     return image
 
 
-def merge_images_landmarks_maps(images, maps, image_size=256, num_landmarks=68, num_samples=9, scale='255'):
-
+def merge_images_landmarks_maps(images, maps, image_size=256, num_landmarks=68, num_samples=9, scale='255',
+                                circle_size=2):
     images = images[:num_samples]
+    if maps.shape[1] is not image_size:
+        images = zoom(images, (1, 0.25, 0.25, 1))
+        image_size /= 4
+    cmap = plt.get_cmap('jet')
 
     row = int(np.sqrt(num_samples))
     merged = np.zeros([row * image_size, row * image_size * 2, 3])
-
-    cmap = plt.get_cmap('jet')
 
     for idx, img in enumerate(images):
         i = idx // row
@@ -269,7 +270,8 @@ def merge_images_landmarks_maps(images, maps, image_size=256, num_landmarks=68, 
         rgba_map_image = cmap(map_image)
         map_image = np.delete(rgba_map_image, 3, 2) * 255
 
-        img = create_img_with_landmarks(img, img_lamdmarks, image_size, num_landmarks, scale=scale)
+        img = create_img_with_landmarks(img, img_lamdmarks, image_size, num_landmarks, scale=scale,
+                                        circle_size=circle_size)
 
         merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = img
         merged[i * image_size:(i + 1) * image_size, (j * 2 + 1) * image_size:(j * 2 + 2) * image_size, :] = map_image
@@ -278,9 +280,18 @@ def merge_images_landmarks_maps(images, maps, image_size=256, num_landmarks=68, 
 
 
 def merge_compare_maps(maps_small, maps, image_size=64, num_landmarks=68, num_samples=9):
+
     maps_small = maps_small[:num_samples]
     maps = maps[:num_samples]
-    maps_rescale = zoom(maps, (1, 0.25, 0.25, 1))
+
+    if maps_small.shape[1] is not image_size:
+        image_size = maps_small.shape[1]
+
+    if maps.shape[1] is not maps_small.shape[1]:
+        maps_rescale = zoom(maps, (1, 0.25, 0.25, 1))
+    else:
+        maps_rescale = maps
+
     cmap = plt.get_cmap('jet')
 
     row = int(np.sqrt(num_samples))
@@ -303,3 +314,45 @@ def merge_compare_maps(maps_small, maps, image_size=64, num_landmarks=68, num_sa
         merged[i * image_size:(i + 1) * image_size, (j * 2 + 1) * image_size:(j * 2 + 2) * image_size, :] = map_image
 
     return merged
+
+
+def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, scale='255'):
+    map1 = maps1[0]
+    map2 = maps2[0]
+    image = images[0]
+
+    if image.shape[0] is not image_size:
+        image = zoom(image, (0.25, 0.25, 1))
+    if scale is '1':
+        image *= 255
+    elif scale is '0':
+        image = 127.5 * (image + 1)
+
+    row = np.ceil(np.sqrt(num_landmarks)).astype(np.int64)
+    merged = np.zeros([row * image_size, row * image_size * 2, 3])
+
+    for idx in range(num_landmarks):
+        i = idx // row
+        j = idx % row
+        channel_map = map_to_rgb(normalize_map(map1[:, :, idx]))
+        channel_map2 = map_to_rgb(normalize_map(map2[:, :, idx]))
+
+        merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = channel_map
+        merged[i * image_size:(i + 1) * image_size, (j * 2 + 1) * image_size:(j * 2 + 2) * image_size, :] = channel_map2
+
+    i = (idx + 1) // row
+    j = (idx + 1) % row
+    merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = image
+
+    return merged
+
+
+def normalize_map(map_in):
+    return (map_in - map_in.min()) / (map_in.max() - map_in.min())
+
+
+def map_to_rgb(map_gray):
+    cmap = plt.get_cmap('jet')
+    rgba_map_image = cmap(map_gray)
+    map_rgb = np.delete(rgba_map_image, 3, 2) * 255
+    return map_rgb
