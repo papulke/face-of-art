@@ -51,8 +51,10 @@ def load_bb_dictionary(bb_dir, mode, test_data='full'):
         elif test_data is 'full':
             bb_dirs = \
                 ['bounding_boxes_ibug.mat', 'bounding_boxes_helen_testset.mat', 'bounding_boxes_lfpw_testset.mat']
+        else:
+            bb_dirs=None
 
-    if mode is 'TEST' and test_data is 'test':
+    if mode == 'TEST' and test_data is 'test':
         bb_files_dict = None
     else:
         bb_dirs = [os.path.join(bb_dir, dataset) for dataset in bb_dirs]

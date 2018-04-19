@@ -38,17 +38,17 @@ class DeepHeatmapsModel(object):
         self.step = 80000  # for lr decay
         self.gamma = 0.1  # for lr decay
 
-        self.weight_initializer = 'random_normal'  # random_normal or xavier
+        self.weight_initializer = 'xavier'  # random_normal or xavier
         self.weight_initializer_std = 0.01
         self.bias_initializer = 0.0
 
         self.sigma = 1.5  # sigma for heatmap generation
-        self.scale = '0'  # scale for image normalization '255' / '1' / '0'
+        self.scale = '1'  # scale for image normalization '255' / '1' / '0'
 
         self.print_every=10
-        self.save_every=1000
+        self.save_every=5000
         self.sample_every_epoch = False
-        self.sample_every=100
+        self.sample_every=1000
         self.sample_grid=9
         self.log_every_epoch=1
         self.log_histograms = True
@@ -56,18 +56,20 @@ class DeepHeatmapsModel(object):
         self.config = tf.ConfigProto()
         self.config.gpu_options.allow_growth = True
 
-        bb_dir = '/Users/arik/Desktop/DATA/face_data/300W/Bounding_Boxes/'
-        test_data ='full'  # if mode is TEST, this choose the set to use full/common/challenging/test
+        # data_dir = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
+        # bb_dir = '/Users/arik/Desktop/DATA/face_data/300W/Bounding_Boxes/'
+        bb_dir = os.path.join(img_path,'Bounding_Boxes')
+        self.test_data ='test'  # if mode is TEST, this choose the set to use full/common/challenging/test
         margin = 0.25  # for face crops
         bb_type = 'gt'  # gt/init
 
         self.debug = False
         self.debug_data_size = 20
 
-        self.bb_dictionary = load_bb_dictionary(bb_dir, mode, test_data=test_data)
+        self.bb_dictionary = load_bb_dictionary(bb_dir, mode, test_data=self.test_data)
 
         self.img_menpo_list = load_menpo_image_list(img_path, mode, self.bb_dictionary, image_size, augment=augment,
-                                                    margin=margin, bb_type=bb_type, test_data=test_data)
+                                                    margin=margin, bb_type=bb_type, test_data=self.test_data)
 
         if mode is 'TRAIN':
             train_params = locals()
@@ -153,8 +155,8 @@ class DeepHeatmapsModel(object):
 
         if self.mode is 'TRAIN':
             primary_maps_diff = self.pred_hm_p-self.train_heatmaps_small
-            self.l2_primary = tf.reduce_mean(tf.square(primary_maps_diff))
-            self.total_loss = self.l2_primary
+            self.total_loss = 1000.*tf.reduce_mean(tf.square(primary_maps_diff))
+            # self.total_loss = self.l2_primary
 
     def create_summary_ops(self):
 
@@ -180,11 +182,7 @@ class DeepHeatmapsModel(object):
         num_images = len(self.img_menpo_list)
         img_inds = np.arange(num_images)
 
-        sample_iter = int(1. * len(num_images) / self.sample_grid)
-
-        if self.max_test_sample is not None:
-            if self.max_test_sample < sample_iter:
-                sample_iter = self.max_test_sample
+        sample_iter = int(1. * num_images / self.sample_grid)
 
         with tf.Session(config=self.config) as sess:
 
@@ -202,25 +200,35 @@ class DeepHeatmapsModel(object):
                 batch_images, _, batch_maps_gt, _ = \
                     load_data(self.img_menpo_list, batch_inds, image_size=self.image_size, c_dim=self.c_dim,
                               num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                              save_landmarks=False)
+                              save_landmarks=False, primary=True)
 
-                batch_maps_small_pred = sess.run([self.pred_hm_f, self.pred_hm_p], {self.test_images: batch_images})
+                batch_maps_small_pred = sess.run(self.pred_hm_p, {self.test_images: batch_images})
 
-                sample_path_imgs = os.path.join(self.save_sample_path, model_name + '-sample-%d-to-%d-1.png' % (
+                sample_path_imgs = os.path.join(self.save_sample_path, model_name +'-'+ self.test_data+'-sample-%d-to-%d-1.png' % (
                                         i * self.sample_grid, (i + 1) * self.sample_grid))
 
-                sample_path_maps = os.path.join(self.save_sample_path, model_name + '-sample-%d-to-%d-2.png' % (
+                sample_path_maps = os.path.join(self.save_sample_path, model_name +'-'+ self.test_data+ '-sample-%d-to-%d-2.png' % (
                                         i * self.sample_grid, (i + 1) * self.sample_grid))
+
+                sample_path_channels = os.path.join(self.save_sample_path, model_name +'-'+ self.test_data+ '-sample-%d-to-%d-3.png' % (
+                    i * self.sample_grid, (i + 1) * self.sample_grid))
 
                 merged_img = merge_images_landmarks_maps(
                     batch_images, batch_maps_small_pred, image_size=self.image_size,
-                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale,circle_size=0)
+                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid,
+                    scale=self.scale,circle_size=0)
 
-                merged_map = merge_compare_maps(batch_maps_gt, batch_maps_small_pred, image_size=self.image_size/4,
+                merged_map = merge_compare_maps(
+                    batch_maps_gt, batch_maps_small_pred,image_size=self.image_size/4,
                     num_landmarks=self.num_landmarks, num_samples=self.sample_grid)
+
+                map_per_channel = map_comapre_channels(
+                    batch_images, batch_maps_small_pred,batch_maps_gt, image_size=self.image_size / 4,
+                    num_landmarks=self.num_landmarks, scale=self.scale)
 
                 scipy.misc.imsave(sample_path_imgs, merged_img)
                 scipy.misc.imsave(sample_path_maps, merged_map)
+                scipy.misc.imsave(sample_path_channels, map_per_channel)
 
                 print ('saved %s' % sample_path_imgs)
 
