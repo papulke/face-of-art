@@ -225,6 +225,15 @@ def heat_maps_to_landmarks(maps, image_size=256, num_landmarks=68):
     return landmarks
 
 
+def batch_heat_maps_to_image(batch_maps, batch_size, image_size=256, num_landmarks=68):
+    batch_landmarks = np.zeros((batch_size,num_landmarks, 2)).astype('float32')
+    for i in range(batch_size):
+        batch_landmarks[i,:,:]=heat_maps_to_landmarks(
+            batch_maps[i,:,:,:], image_size=image_size, num_landmarks=num_landmarks)
+
+    return batch_landmarks
+
+
 def print_training_params_to_file(init_locals):
     del init_locals['self']
     with open(os.path.join(init_locals['save_log_path'], 'Training_Parameters.txt'), 'w') as f:
