@@ -45,10 +45,10 @@ class DeepHeatmapsModel(object):
         self.sigma = 1.5  # sigma for heatmap generation
         self.scale = '1'  # scale for image normalization '255' / '1' / '0'
 
-        self.print_every=1
+        self.print_every=10
         self.save_every=5000
         self.sample_every_epoch = False
-        self.sample_every=5
+        self.sample_every=1000
         self.sample_grid=9
         self.log_every_epoch=1
         self.log_histograms = True
@@ -69,6 +69,23 @@ class DeepHeatmapsModel(object):
 
         self.img_menpo_list = load_menpo_image_list(img_path, mode, self.bb_dictionary, image_size, augment=augment,
                                                     margin=margin, bb_type=bb_type, test_data=self.test_data)
+        # train - validation split
+
+        self.valid_size = 100
+        np.random.seed(0)
+        img_inds = np.arange(len(self.img_menpo_list))
+        np.random.shuffle(img_inds)
+
+        val_inds = img_inds[:self.valid_size]
+        train_inds = img_inds[self.valid_size:]
+        self.valid_img_menpo_list = self.img_menpo_list[val_inds]
+
+        self.valid_images_loaded, _, _, self.valid_landmarks_loaded = \
+            load_data(self.valid_img_menpo_list, np.arange(self.valid_size), image_size=self.image_size,
+                      c_dim=self.c_dim, num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
+                      save_landmarks=True, primary=True)
+
+        self.img_menpo_list = self.img_menpo_list[train_inds]
 
         if mode is 'TRAIN':
             train_params = locals()
@@ -94,6 +111,8 @@ class DeepHeatmapsModel(object):
                     self.train_lms_small = tf.placeholder(tf.float32, [None, self.num_landmarks, 2], 'train_lms_small')
                     self.pred_lms_small = tf.placeholder(tf.float32, [None, self.num_landmarks, 2], 'pred_lms_small')
 
+                self.valid_lms_small = tf.placeholder(tf.float32, [None, self.num_landmarks, 2], 'valid_lms_small')
+                self.valid_pred_lms_small = tf.placeholder(tf.float32, [None, self.num_landmarks, 2], 'valid_lms_small')
 
     def heatmaps_network(self, input_images, reuse=None, name='pred_heatmaps'):
 
@@ -193,6 +212,98 @@ class DeepHeatmapsModel(object):
             else:
                 self.nme_loss = tf.constant(0.)
 
+            if self.valid_size > 0:
+                self.valid_nme_loss = l2_loss_norm_eyes(self.valid_pred_lms_small,self.valid_lms_small)
+            else:
+                self.valid_nme_loss = tf.constant(0.)
+
+    def predict_landmarks_in_batches(self,image_paths,session):
+
+        num_batches = int(1.*len(image_paths)/self.batch_size)
+        if num_batches == 0:
+            batch_size = len(image_paths)
+            num_batches = 1
+        else:
+            batch_size = self.batch_size
+
+        img_inds = np.arange(len(image_paths))
+        for j in range(num_batches):
+            batch_inds = img_inds[j * self.batch_size:(j + 1) * self.batch_size]
+
+            batch_images, _, _, batch_lms_small = \
+                load_data(self.img_menpo_list, batch_inds, image_size=self.image_size, c_dim=self.c_dim,
+                          num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
+                          save_landmarks=self.compute_nme, primary=True)
+
+            if j == 0:
+                batch_maps_small_pred = session.run(self.pred_hm_p, {self.train_images: batch_images})
+                all_pred_landmarks = batch_heat_maps_to_image(
+                    batch_maps_small_pred, self.batch_size, image_size=self.image_size / 4,
+                    num_landmarks=self.num_landmarks)
+            else:
+                batch_maps_small_pred = session.run(self.pred_hm_p, {self.train_images: batch_images})
+                batch_pred_landmarks = batch_heat_maps_to_image(
+                    batch_maps_small_pred, self.batch_size, image_size=self.image_size / 4,
+                    num_landmarks=self.num_landmarks)
+
+                all_pred_landmarks = np.concatenate((all_pred_landmarks,batch_pred_landmarks),0)
+
+        reminder = len(image_paths)-num_batches*batch_size
+
+        if reminder >0:
+            reminder_inds = img_inds[-reminder:]
+            batch_images, _, _, batch_lms_small = \
+                load_data(self.img_menpo_list, reminder_inds, image_size=self.image_size, c_dim=self.c_dim,
+                          num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
+                          save_landmarks=self.compute_nme, primary=True)
+
+            batch_maps_small_pred = session.run(self.pred_hm_p, {self.train_images: batch_images})
+            batch_pred_landmarks = batch_heat_maps_to_image(
+                batch_maps_small_pred, self.batch_size, image_size=self.image_size / 4,
+                num_landmarks=self.num_landmarks)
+
+            all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
+
+        return all_pred_landmarks
+
+    def predict_landmarks_in_batches_loaded(self,images,session):
+
+        num_images=int(images.shape[0])
+        num_batches = int(1.*num_images/self.batch_size)
+        if num_batches == 0:
+            batch_size = num_images
+            num_batches = 1
+        else:
+            batch_size = self.batch_size
+
+        for j in range(num_batches):
+            batch_images = images[j * self.batch_size:(j + 1) * self.batch_size,:,:,:]
+
+            if j == 0:
+                batch_maps_small_pred = session.run(self.pred_hm_p, {self.train_images: batch_images})
+                all_pred_landmarks = batch_heat_maps_to_image(
+                    batch_maps_small_pred, self.batch_size, image_size=self.image_size / 4,
+                    num_landmarks=self.num_landmarks)
+            else:
+                batch_maps_small_pred = session.run(self.pred_hm_p, {self.train_images: batch_images})
+                batch_pred_landmarks = batch_heat_maps_to_image(
+                    batch_maps_small_pred, self.batch_size, image_size=self.image_size / 4,
+                    num_landmarks=self.num_landmarks)
+
+                all_pred_landmarks = np.concatenate((all_pred_landmarks,batch_pred_landmarks),0)
+
+        reminder = num_images-num_batches*batch_size
+        if reminder >0:
+            batch_images = images[-reminder:, :, :, :]
+            batch_maps_small_pred = session.run(self.pred_hm_p, {self.train_images: batch_images})
+            batch_pred_landmarks = batch_heat_maps_to_image(
+                batch_maps_small_pred, reminder, image_size=self.image_size / 4,
+                num_landmarks=self.num_landmarks)
+
+            all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
+
+        return all_pred_landmarks
+
     def create_summary_ops(self):
 
             var_summary = [tf.summary.histogram(var.name,var) for var in tf.trainable_variables()]
@@ -202,12 +313,13 @@ class DeepHeatmapsModel(object):
             activ_summary = [tf.summary.histogram(layer.name, layer) for layer in self.all_layers]
             l_total = tf.summary.scalar('l_total', self.total_loss)
             l_nme = tf.summary.scalar('l_nme', self.nme_loss)
+            l_v_nme = tf.summary.scalar('valid_l_nme', self.valid_nme_loss)
 
             if self.log_histograms:
-                self.batch_summary_op = tf.summary.merge([l_total, l_nme, var_summary, grad_summary,
+                self.batch_summary_op = tf.summary.merge([l_total, l_nme, l_v_nme, var_summary, grad_summary,
                                                           activ_summary])
             else:
-                self.batch_summary_op = tf.summary.merge([l_total, l_nme])
+                self.batch_summary_op = tf.summary.merge([l_total, l_nme, l_v_nme])
 
     def eval(self):
 
@@ -332,7 +444,10 @@ class DeepHeatmapsModel(object):
                     # save to log and print status
                     if step == 0 or (step + 1) % self.print_every == 0:
 
-                        if self.compute_nme:
+                        if self.compute_nme is False and self.valid_size == 0:
+                            feed_dict_log = feed_dict_train
+
+                        elif self.compute_nme and self.valid_size == 0:
                             batch_maps_small_pred = sess.run(self.pred_hm_p, {self.train_images: batch_images})
                             pred_lms_small = batch_heat_maps_to_image(
                                 batch_maps_small_pred, self.batch_size, image_size=self.image_size/4,
@@ -341,16 +456,35 @@ class DeepHeatmapsModel(object):
                             feed_dict_log = {
                                 self.train_images: batch_images, self.train_heatmaps_small: batch_maps_small,
                                 self.train_lms_small: batch_lms_small, self.pred_lms_small: pred_lms_small}
-                        else:
-                            feed_dict_log = feed_dict_train
 
-                        summary, l_t,l_nme = sess.run([self.batch_summary_op, self.total_loss, self.nme_loss],
-                                                      feed_dict_log)
+                        elif self.compute_nme and self.valid_size > 0:
+                            valid_pred_lms = self.predict_landmarks_in_batches_loaded(self.valid_images_loaded,sess)
+
+                            batch_maps_small_pred = sess.run(self.pred_hm_p, {self.train_images: batch_images})
+                            pred_lms_small = batch_heat_maps_to_image(
+                                batch_maps_small_pred, self.batch_size, image_size=self.image_size/4,
+                                num_landmarks=self.num_landmarks)
+
+                            feed_dict_log = {
+                                self.train_images: batch_images, self.train_heatmaps_small: batch_maps_small,
+                                self.train_lms_small: batch_lms_small, self.pred_lms_small: pred_lms_small,
+                                self.valid_lms_small: self.valid_landmarks_loaded,
+                                self.valid_pred_lms_small: valid_pred_lms}
+
+                        else:
+                            valid_pred_lms = self.predict_landmarks_in_batches_loaded(self.valid_images_loaded,sess)
+                            feed_dict_log = {
+                                self.train_images: batch_images, self.train_heatmaps_small: batch_maps_small,
+                                self.valid_lms_small: self.valid_landmarks_loaded,
+                                self.valid_pred_lms_small: valid_pred_lms}
+
+                        summary, l_t, l_nme, l_v_nme = sess.run(
+                            [self.batch_summary_op, self.total_loss, self.nme_loss, self.valid_nme_loss], feed_dict_log)
 
                         summary_writer.add_summary(summary, step)
 
-                        print ('epoch: [%d] step: [%d/%d] primary loss: [%.6f] nme loss: [%.6f] ' % (
-                            epoch, step + 1, self.train_iter, l_t, l_nme))
+                        print ('epoch: [%d] step: [%d/%d] primary loss: [%.6f] nme loss: [%.6f] valid nme loss: [%.6f]' % (
+                            epoch, step + 1, self.train_iter, l_t, l_nme, l_v_nme))
 
                     # save model
                     if (step + 1) % self.save_every == 0:
