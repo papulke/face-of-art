@@ -18,9 +18,45 @@ class DeepHeatmapsModel(object):
                  num_landmarks=68, augment=True, img_path='data', save_log_path='logs', save_sample_path='sample',
                  save_model_path='model',test_model_path='model/deep_heatmaps_primary-1000'):
 
+        # values to print to save parameter:
+
+        # optimizer parameters
+        momentum = 0.95
+        step = 80000  # for lr decay
+        gamma = 0.1  # for lr decay
+
+        # network init parameters
+        weight_initializer = 'xavier'  # random_normal or xavier
+        weight_initializer_std = 0.01
+        bias_initializer = 0.0
+
+        sigma = 1.5  # sigma for heatmap generation
+        scale = '1'  # scale for image normalization '255' / '1' / '0'
+        margin = 0.25  # for face crops
+        bb_type = 'gt'  # gt/init
+
+        valid_size = 100
+        test_data = 'test'  # if mode is TEST, this choose the set to use full/common/challenging/test
+
+        # sampling and logging parameters
+        self.print_every = 10
+        self.save_every = 5000
+        self.sample_every_epoch = False
+        self.sample_every = 1000
+        self.sample_grid = 9
+        self.log_every_epoch = 1
+        self.log_histograms = True
+
+        self.debug = False
+        self.debug_data_size = 20
+        self.compute_nme = True
+
+        self.config = tf.ConfigProto()
+        self.config.gpu_options.allow_growth = True
+
         self.mode = mode
-        self.train_iter=train_iter
-        self.learning_rate=learning_rate
+        self.train_iter = train_iter
+        self.learning_rate = learning_rate
 
         self.image_size = image_size
         self.c_dim = c_dim
@@ -28,50 +64,37 @@ class DeepHeatmapsModel(object):
 
         self.num_landmarks = num_landmarks
 
-        self.save_log_path=save_log_path
-        self.save_sample_path=save_sample_path
-        self.save_model_path=save_model_path
-        self.test_model_path=test_model_path
+        self.save_log_path = save_log_path
+        self.save_sample_path = save_sample_path
+        self.save_model_path = save_model_path
+        self.test_model_path = test_model_path
         self.img_path=img_path
 
-        self.momentum = 0.95
-        self.step = 80000  # for lr decay
-        self.gamma = 0.1  # for lr decay
+        self.momentum = momentum
+        self.step = step  # for lr decay
+        self.gamma = gamma  # for lr decay
 
-        self.weight_initializer = 'xavier'  # random_normal or xavier
-        self.weight_initializer_std = 0.01
-        self.bias_initializer = 0.0
+        self.weight_initializer = weight_initializer  # random_normal or xavier
+        self.weight_initializer_std = weight_initializer_std
+        self.bias_initializer = bias_initializer
 
-        self.sigma = 1.5  # sigma for heatmap generation
-        self.scale = '1'  # scale for image normalization '255' / '1' / '0'
+        self.sigma = sigma  # sigma for heatmap generation
+        self.scale = scale  # scale for image normalization '255' / '1' / '0'
 
-        self.print_every=10
-        self.save_every=5000
-        self.sample_every_epoch = False
-        self.sample_every=1000
-        self.sample_grid=9
-        self.log_every_epoch=1
-        self.log_histograms = True
+        self.test_data =test_data  # if mode is TEST, this choose the set to use full/common/challenging/test
 
-        self.config = tf.ConfigProto()
-        self.config.gpu_options.allow_growth = True
-
-        bb_dir = os.path.join(img_path,'Bounding_Boxes')
-        self.test_data ='test'  # if mode is TEST, this choose the set to use full/common/challenging/test
-        margin = 0.25  # for face crops
-        bb_type = 'gt'  # gt/init
-
-        self.debug = False
-        self.debug_data_size = 20
-        self.compute_nme = True
-
-        self.bb_dictionary = load_bb_dictionary(bb_dir, mode, test_data=self.test_data)
-
+        # load image, bb and landmark data using menpo
+        self.bb_dir = os.path.join(img_path, 'Bounding_Boxes')
+        self.bb_dictionary = load_bb_dictionary(self.bb_dir, mode, test_data=self.test_data)
         self.img_menpo_list = load_menpo_image_list(img_path, mode, self.bb_dictionary, image_size, augment=augment,
                                                     margin=margin, bb_type=bb_type, test_data=self.test_data)
-        # train - validation split
 
-        self.valid_size = 100
+        if mode is 'TRAIN':
+            train_params = locals()
+            print_training_params_to_file(train_params)  # save init parameters
+
+        # train - validation split
+        self.valid_size = valid_size
         np.random.seed(0)
         img_inds = np.arange(len(self.img_menpo_list))
         np.random.shuffle(img_inds)
@@ -86,10 +109,6 @@ class DeepHeatmapsModel(object):
                       save_landmarks=True, primary=True)
 
         self.img_menpo_list = self.img_menpo_list[train_inds]
-
-        if mode is 'TRAIN':
-            train_params = locals()
-            print_training_params_to_file(train_params)
 
     def add_placeholders(self):
 
