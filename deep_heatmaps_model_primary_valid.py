@@ -236,6 +236,7 @@ class DeepHeatmapsModel(object):
                 self.valid_nme_loss = l2_loss_norm_eyes(self.valid_pred_lms_small,self.valid_lms_small)
             else:
                 self.valid_nme_loss = tf.constant(0.)
+
         elif self.mode == 'TEST' and self.compute_nme:
             self.nme_loss = l2_loss_norm_eyes(self.pred_lms_small, self.lms_small)
 
