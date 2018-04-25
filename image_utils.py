@@ -225,7 +225,7 @@ def heat_maps_to_landmarks(maps, image_size=256, num_landmarks=68):
     return landmarks
 
 
-def batch_heat_maps_to_image(batch_maps, batch_size, image_size=256, num_landmarks=68):
+def batch_heat_maps_to_landmarks(batch_maps, batch_size, image_size=256, num_landmarks=68):
     batch_landmarks = np.zeros((batch_size,num_landmarks, 2)).astype('float32')
     for i in range(batch_size):
         batch_landmarks[i,:,:]=heat_maps_to_landmarks(
