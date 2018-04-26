@@ -383,29 +383,19 @@ class DeepHeatmapsModel(object):
                     self.save_sample_path, model_name +'-'+ self.test_data+'-sample-%d-to-%d-1.png' % (
                         i * self.sample_grid, (i + 1) * self.sample_grid))
 
-                sample_path_maps = os.path.join(
-                    self.save_sample_path, model_name +'-'+ self.test_data+ '-sample-%d-to-%d-2.png' % (
-                        i * self.sample_grid, (i + 1) * self.sample_grid))
-
                 sample_path_channels = os.path.join(
                     self.save_sample_path, model_name +'-'+ self.test_data+ '-sample-%d-to-%d-3.png' % (
                         i * self.sample_grid, (i + 1) * self.sample_grid))
 
-                merged_img = merge_images_landmarks_maps(
-                    batch_images.copy(), batch_maps_small_pred, image_size=self.image_size,
-                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid,
-                    scale=self.scale,circle_size=0)
-
-                merged_map = merge_compare_maps(
-                    batch_maps_gt, batch_maps_small_pred,image_size=self.image_size/4,
-                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid)
+                merged_img = merge_images_landmarks_maps_gt(
+                    batch_images.copy(), batch_maps_small_pred, batch_maps_gt, image_size=self.image_size,
+                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale, circle_size=0)
 
                 map_per_channel = map_comapre_channels(
                     batch_images.copy(), batch_maps_small_pred,batch_maps_gt, image_size=self.image_size / 4,
                     num_landmarks=self.num_landmarks, scale=self.scale)
 
                 scipy.misc.imsave(sample_path_imgs, merged_img)
-                scipy.misc.imsave(sample_path_maps, merged_map)
                 scipy.misc.imsave(sample_path_channels, map_per_channel)
 
                 print ('saved %s' % sample_path_imgs)
@@ -536,26 +526,20 @@ class DeepHeatmapsModel(object):
 
                             sample_path_imgs = os.path.join(self.save_sample_path,'epoch-%d-train-iter-%d-1.png'
                                                             % (epoch, step + 1))
-                            sample_path_maps = os.path.join(self.save_sample_path,'epoch-%d-train-iter-%d-2.png'
-                                                            % (epoch, step + 1))
                             sample_path_ch_maps = os.path.join(self.save_sample_path, 'epoch-%d-train-iter-%d-3.png'
                                                                % (epoch, step + 1))
 
-                            merged_img = merge_images_landmarks_maps(
-                                batch_images.copy(), batch_maps_small_pred, image_size=self.image_size,
+                            merged_img = merge_images_landmarks_maps_gt(
+                                batch_images.copy(), batch_maps_small_pred, batch_maps_small,
+                                image_size=self.image_size,
                                 num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale,
                                 circle_size=0)
-
-                            merged_map = merge_compare_maps(
-                                batch_maps_small_pred, batch_maps_small, image_size=self.image_size/4,
-                                num_landmarks=self.num_landmarks, num_samples=self.sample_grid)
 
                             map_per_channel = map_comapre_channels(
                                 batch_images.copy(), batch_maps_small_pred,batch_maps_small,
                                 image_size=self.image_size/4, num_landmarks=self.num_landmarks, scale=self.scale)
 
                             scipy.misc.imsave(sample_path_imgs, merged_img)
-                            scipy.misc.imsave(sample_path_maps, merged_map)
                             scipy.misc.imsave(sample_path_ch_maps, map_per_channel)
 
                 print('*** Finished Training ***')
