@@ -38,7 +38,7 @@ class DeepHeatmapsModel(object):
         bb_type = 'gt'  # gt/init
 
         valid_size = 100
-        test_data = 'full'  # if mode is TEST, this choose the set to use full/common/challenging/test/art
+        test_data = 'full'  # if mode is TEST, this choose the set to use full/common/challenging/test
 
         # sampling and logging parameters
         self.print_every = 10
