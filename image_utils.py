@@ -290,45 +290,6 @@ def merge_images_landmarks_maps(images, maps, image_size=256, num_landmarks=68, 
     return merged
 
 
-def merge_images_landmarks_maps_gt(images, maps, maps_gt,image_size=256, num_landmarks=68, num_samples=9, scale='255',
-                                   circle_size=2):
-    images = images[:num_samples]
-    if maps.shape[1] is not image_size:
-        images = zoom(images, (1, 0.25, 0.25, 1))
-        image_size /= 4
-    if maps_gt.shape[1] is not image_size:
-        maps_gt = zoom(maps_gt, (1, 0.25, 0.25, 1))
-
-    cmap = plt.get_cmap('jet')
-
-    row = int(np.sqrt(num_samples))
-    merged = np.zeros([row * image_size, row * image_size * 3, 3])
-
-    for idx, img in enumerate(images):
-        i = idx // row
-        j = idx % row
-
-        img_lamdmarks = heat_maps_to_landmarks(maps[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
-
-        map_image = heat_maps_to_image(maps[idx, :, :, :], img_lamdmarks, image_size=image_size,
-                                       num_landmarks=num_landmarks)
-        rgba_map_image = cmap(map_image)
-        map_image = np.delete(rgba_map_image, 3, 2) * 255
-
-        map_gt_image = heat_maps_to_image(maps_gt[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
-        rgba_map_gt_image = cmap(map_gt_image)
-        map_gt_image = np.delete(rgba_map_gt_image, 3, 2) * 255
-
-        img = create_img_with_landmarks(img, img_lamdmarks, image_size, num_landmarks, scale=scale,
-                                        circle_size=circle_size)
-
-        merged[i * image_size:(i + 1) * image_size, (j * 3) * image_size:(j * 3 + 1) * image_size, :] = img
-        merged[i * image_size:(i + 1) * image_size, (j * 3 + 1) * image_size:(j * 3 + 2) * image_size, :] = map_image
-        merged[i * image_size:(i + 1) * image_size, (j * 3 + 2) * image_size:(j * 3 + 3) * image_size, :] = map_gt_image
-
-    return merged
-
-
 def merge_compare_maps(maps_small, maps, image_size=64, num_landmarks=68, num_samples=9):
 
     maps_small = maps_small[:num_samples]
@@ -366,7 +327,78 @@ def merge_compare_maps(maps_small, maps, image_size=64, num_landmarks=68, num_sa
     return merged
 
 
-def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, scale='255'):
+def normalize_map(map_in):
+    return (map_in - map_in.min()) / (map_in.max() - map_in.min())
+
+
+def map_to_rgb(map_gray):
+    cmap = plt.get_cmap('jet')
+    rgba_map_image = cmap(map_gray)
+    map_rgb = np.delete(rgba_map_image, 3, 2) * 255
+    return map_rgb
+
+
+def load_art_data(img_list, batch_inds, image_size=256, c_dim=3, scale='255'):
+
+    num_inputs = len(batch_inds)
+    batch_menpo_images = img_list[batch_inds]
+
+    images = np.zeros([num_inputs, image_size, image_size, c_dim]).astype('float32')
+
+    for ind, img in enumerate(batch_menpo_images):
+        images[ind, :, :, :] = np.rollaxis(img.pixels, 0, 3)
+
+    if scale is '255':
+        images *= 255  # SAME AS ECT?
+    elif scale is '0':
+        images = 2 * images - 1
+
+    return images
+
+
+def merge_images_landmarks_maps_gt(images, maps, maps_gt, image_size=256, num_landmarks=68, num_samples=9, scale='255',
+                                   circle_size=2, test_data='full'):
+    images = images[:num_samples]
+    if maps.shape[1] is not image_size:
+        images = zoom(images, (1, 0.25, 0.25, 1))
+        image_size /= 4
+    if maps_gt.shape[1] is not image_size:
+        maps_gt = zoom(maps_gt, (1, 0.25, 0.25, 1))
+
+    cmap = plt.get_cmap('jet')
+
+    row = int(np.sqrt(num_samples))
+    merged = np.zeros([row * image_size, row * image_size * 3, 3])
+
+    for idx, img in enumerate(images):
+        i = idx // row
+        j = idx % row
+
+        img_lamdmarks = heat_maps_to_landmarks(maps[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
+
+        map_image = heat_maps_to_image(maps[idx, :, :, :], img_lamdmarks, image_size=image_size,
+                                       num_landmarks=num_landmarks)
+        rgba_map_image = cmap(map_image)
+        map_image = np.delete(rgba_map_image, 3, 2) * 255
+
+        if test_data is 'art':
+            map_gt_image = map_image.copy()
+        else:
+            map_gt_image = heat_maps_to_image(maps_gt[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
+            rgba_map_gt_image = cmap(map_gt_image)
+            map_gt_image = np.delete(rgba_map_gt_image, 3, 2) * 255
+
+        img = create_img_with_landmarks(img, img_lamdmarks, image_size, num_landmarks, scale=scale,
+                                        circle_size=circle_size)
+
+        merged[i * image_size:(i + 1) * image_size, (j * 3) * image_size:(j * 3 + 1) * image_size, :] = img
+        merged[i * image_size:(i + 1) * image_size, (j * 3 + 1) * image_size:(j * 3 + 2) * image_size, :] = map_image
+        merged[i * image_size:(i + 1) * image_size, (j * 3 + 2) * image_size:(j * 3 + 3) * image_size, :] = map_gt_image
+
+    return merged
+
+
+def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, scale='255',test_data='full'):
     map1 = maps1[0]
     map2 = maps2[0]
     image = images[0]
@@ -385,7 +417,10 @@ def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, s
         i = idx // row
         j = idx % row
         channel_map = map_to_rgb(normalize_map(map1[:, :, idx]))
-        channel_map2 = map_to_rgb(normalize_map(map2[:, :, idx]))
+        if test_data is 'art':
+            channel_map2=channel_map.copy()
+        else:
+            channel_map2 = map_to_rgb(normalize_map(map2[:, :, idx]))
 
         merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = channel_map
         merged[i * image_size:(i + 1) * image_size, (j * 2 + 1) * image_size:(j * 2 + 2) * image_size, :] = channel_map2
@@ -396,13 +431,3 @@ def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, s
 
     return merged
 
-
-def normalize_map(map_in):
-    return (map_in - map_in.min()) / (map_in.max() - map_in.min())
-
-
-def map_to_rgb(map_gray):
-    cmap = plt.get_cmap('jet')
-    rgba_map_image = cmap(map_gray)
-    map_rgb = np.delete(rgba_map_image, 3, 2) * 255
-    return map_rgb

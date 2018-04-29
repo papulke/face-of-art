@@ -22,7 +22,7 @@ class DeepHeatmapsModel(object):
 
         # optimizer parameters
         momentum = 0.95
-        step = 20000  # for lr decay
+        step = 80000  # for lr decay
         gamma = 0.1  # for lr decay
         l_weight_primary = 1000.  # primary loss weight
         l_weight_fusion = 3. * l_weight_primary  # fusion loss weight
@@ -38,7 +38,7 @@ class DeepHeatmapsModel(object):
         bb_type = 'gt'  # gt/init
 
         valid_size = 100
-        test_data = 'test'  # if mode is TEST, this choose the set to use full/common/challenging/test
+        test_data = 'art'  # if mode is TEST, this choose the set to use full/common/challenging/test
 
         # sampling and logging parameters
         self.print_every = 10
@@ -89,9 +89,13 @@ class DeepHeatmapsModel(object):
 
         # load image, bb and landmark data using menpo
         self.bb_dir = os.path.join(img_path, 'Bounding_Boxes')
-        self.bb_dictionary = load_bb_dictionary(self.bb_dir, mode, test_data=self.test_data)
-        self.img_menpo_list = load_menpo_image_list(img_path, mode, self.bb_dictionary, image_size, augment=augment,
-                                                    margin=margin, bb_type=bb_type, test_data=self.test_data)
+        if mode == 'TEST' and test_data == 'art':
+            self.compute_nme=False
+            self.img_menpo_list = mio.import_images(os.path.join(img_path+'art_set'), verbose=True)
+        else:
+            self.bb_dictionary = load_bb_dictionary(self.bb_dir, mode, test_data=self.test_data)
+            self.img_menpo_list = load_menpo_image_list(img_path, mode, self.bb_dictionary, image_size, augment=augment,
+                                                        margin=margin, bb_type=bb_type, test_data=self.test_data)
         if self.debug:
             self.img_menpo_list = self.img_menpo_list[:self.debug_data_size]
 
@@ -112,7 +116,7 @@ class DeepHeatmapsModel(object):
             self.valid_images_loaded, _, _, self.valid_landmarks_loaded = \
                 load_data(self.valid_img_menpo_list, np.arange(self.valid_size), image_size=self.image_size,
                           c_dim=self.c_dim, num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                          save_landmarks=True, primary=True)
+                          save_landmarks=True, primary=False)
 
             self.img_menpo_list = self.img_menpo_list[train_inds]
 
@@ -431,13 +435,21 @@ class DeepHeatmapsModel(object):
 
                 batch_inds = img_inds[i * self.sample_grid:(i + 1) * self.sample_grid]
 
-                batch_images, batch_maps_gt, batch_maps_small_gt, _ = \
-                    load_data(self.img_menpo_list, batch_inds, image_size=self.image_size, c_dim=self.c_dim,
-                              num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                              save_landmarks=False, primary=False)
+                if self.test_data == 'art':
+                    batch_images = load_art_data(self.img_menpo_list, batch_inds, image_size=self.image_size,
+                                                 c_dim=self.c_dim, scale=self.scale)
+                else:
+                    batch_images, batch_maps_gt, batch_maps_small_gt, _ = \
+                        load_data(self.img_menpo_list, batch_inds, image_size=self.image_size, c_dim=self.c_dim,
+                                  num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
+                                  save_landmarks=False, primary=False)
 
                 batch_maps_small_pred, batch_maps_pred = sess.run(
                     [self.pred_hm_p,self.pred_hm_f], {self.images: batch_images})
+
+                if self.test_data == 'art':
+                    batch_maps_gt = batch_maps_pred.copy()
+                    batch_maps_small_gt = batch_maps_small_pred.copy()
 
                 sample_path_imgs = os.path.join(
                     self.save_sample_path, model_name +'-'+ self.test_data+'-sample-%d-to-%d-1.png' % (
@@ -457,19 +469,21 @@ class DeepHeatmapsModel(object):
 
                 merged_img = merge_images_landmarks_maps_gt(
                     batch_images.copy(), batch_maps_pred, batch_maps_gt, image_size=self.image_size,
-                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale,circle_size=2)
+                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale, circle_size=2,
+                    test_data=self.test_data)
 
                 map_per_channel = map_comapre_channels(
                     batch_images.copy(), batch_maps_pred, batch_maps_gt, image_size=self.image_size,
-                    num_landmarks=self.num_landmarks, scale=self.scale)
+                    num_landmarks=self.num_landmarks, scale=self.scale, test_data=self.test_data)
 
                 merged_img_small = merge_images_landmarks_maps_gt(
                     batch_images.copy(), batch_maps_small_pred, batch_maps_small_gt, image_size=self.image_size,
-                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale, circle_size=0)
+                    num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale, circle_size=0,
+                    test_data=self.test_data)
 
                 map_per_channel_small = map_comapre_channels(
                     batch_images.copy(), batch_maps_small_pred, batch_maps_small_gt, image_size=self.image_size / 4,
-                    num_landmarks=self.num_landmarks, scale=self.scale)
+                    num_landmarks=self.num_landmarks, scale=self.scale, test_data=self.test_data)
 
                 scipy.misc.imsave(sample_path_imgs, merged_img)
                 scipy.misc.imsave(sample_path_channels, map_per_channel)
