@@ -6,6 +6,7 @@ from menpo.shape.pointcloud import PointCloud
 import menpo.io as mio
 import matplotlib.pyplot as plt
 from scipy.ndimage import zoom
+from glob import glob
 
 
 '''********* bounding box and image loading functions *********'''
@@ -133,6 +134,51 @@ def load_menpo_image_list(img_dir, mode, bb_dictionary=None, image_size=256, mar
 
     return out_image_list
 
+
+def augment_menpo_img_ns(img, img_dir_ns, p_ns=0):
+    img = img.copy()
+    texture_aug = p_ns > 0.5
+    if texture_aug:
+        ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '*'))
+        num_augs = len(ns_augs)
+        if num_augs > 0:
+            ns_ind = np.random.randint(1, num_augs)
+            ns_aug = mio.import_image(ns_augs[ns_ind])
+            ns_pixels = ns_aug.pixels
+            img.pixels = ns_pixels
+    return img
+
+
+def load_menpo_image_list_artistic_aug(img_dir, train_crop_dir, img_dir_ns, mode, bb_dictionary=None, image_size=256,
+                                       margin=0.25, bb_type='gt', test_data='full', augment_basic=True,
+                                       augment_texture=False, p_texture=0, augment_geom=False, p_geom=0):
+    def crop_to_face_image_gt(img):
+        return crop_to_face_image(img, bb_dictionary, gt=True, margin=margin, image_size=image_size)
+
+    def crop_to_face_image_init(img):
+        return crop_to_face_image(img, bb_dictionary, gt=False, margin=margin, image_size=image_size)
+
+    def augment_menpo_img_ns_rand(img):
+        return augment_menpo_img_ns(img, img_dir_ns, p_ns=1. * (np.random.rand() <= p_texture))
+
+    if mode is 'TRAIN':
+        img_set_dir = os.path.join(img_dir, train_crop_dir)
+
+    else:
+        img_set_dir = os.path.join(img_dir, test_data + '_set')
+
+    out_image_list = mio.import_images(img_set_dir, verbose=True)
+
+    if bb_type is 'gt' and mode == 'TEST':
+        out_image_list = out_image_list.map(crop_to_face_image_gt)
+    elif bb_type is 'init' and mode == 'TEST':
+        out_image_list = out_image_list.map(crop_to_face_image_init)
+    else:
+        if augment_texture:
+            out_image_list = out_image_list.map(augment_menpo_img_ns_rand)
+        if augment_basic:
+            out_image_list = out_image_list.map(augment_face_image)
+    return out_image_list
 
 '''********* heat-maps and image loading functions *********'''
 
