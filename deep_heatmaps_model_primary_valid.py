@@ -15,8 +15,9 @@ class DeepHeatmapsModel(object):
     """facial landmark localization Network"""
 
     def __init__(self, mode='TRAIN', train_iter=500000, learning_rate=1e-8, image_size=256, c_dim=3, batch_size=10,
-                 num_landmarks=68, augment_basic=True, augment_texture=False,img_path='data', save_log_path='logs',
-                 save_sample_path='sample', save_model_path='model',test_model_path='model/deep_heatmaps_primary-1000'):
+                 num_landmarks=68, augment_basic=True, augment_texture=False, augment_geom=False, img_path='data',
+                 save_log_path='logs', save_sample_path='sample', save_model_path='model',
+                 test_model_path='model/deep_heatmaps_primary-1000'):
 
         # values to print to save parameter:
 
@@ -38,10 +39,12 @@ class DeepHeatmapsModel(object):
         valid_size = 100
         test_data = 'full'  # if mode is TEST, this choose the set to use full/common/challenging/test
         train_crop_dir = 'crop_gt_margin_0.25'
-        img_dir_ns = os.path.join(img_path,'check_ns_set')
+        img_dir_ns = os.path.join(img_path, train_crop_dir+'_ns')
         augment_basic = augment_basic  # perform basic augmentation (rotation,flip,crop)
         augment_texture = augment_texture # perform artistic texture augmentation (NS)
         p_texture = 1
+        augment_geom = augment_geom  # perform artistic geometric augmentation
+        p_geom = 1
 
         # sampling and logging parameters
         self.print_every = 10
@@ -98,7 +101,7 @@ class DeepHeatmapsModel(object):
             self.img_menpo_list =load_menpo_image_list_artistic_aug(
                 img_path, train_crop_dir, img_dir_ns, mode,bb_dictionary=self.bb_dictionary, image_size=self.image_size,
                 margin=margin, bb_type=bb_type, test_data=self.test_data, augment_basic=augment_basic,
-                augment_texture=augment_texture, p_texture=p_texture)
+                augment_texture=augment_texture, p_texture=p_texture, augment_geom=augment_geom, p_geom=p_geom)
 
         if self.debug:
             self.img_menpo_list = self.img_menpo_list[:self.debug_data_size]
