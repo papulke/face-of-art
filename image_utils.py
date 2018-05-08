@@ -3,11 +3,12 @@ import os
 from scipy.io import loadmat
 import cv2
 from menpo.shape.pointcloud import PointCloud
+from menpo.transform import ThinPlateSplines
 import menpo.io as mio
 import matplotlib.pyplot as plt
 from scipy.ndimage import zoom
 from glob import glob
-
+from deformation_functions import *
 
 '''********* bounding box and image loading functions *********'''
 
@@ -141,7 +142,7 @@ def augment_menpo_img_ns(img, img_dir_ns, p_ns=0):
     if texture_aug:
         ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '*'))
         num_augs = len(ns_augs)
-        if num_augs > 0:
+        if num_augs > 1:
             ns_ind = np.random.randint(1, num_augs)
             ns_aug = mio.import_image(ns_augs[ns_ind])
             ns_pixels = ns_aug.pixels
@@ -149,9 +150,26 @@ def augment_menpo_img_ns(img, img_dir_ns, p_ns=0):
     return img
 
 
-def load_menpo_image_list_artistic_aug(img_dir, train_crop_dir, img_dir_ns, mode, bb_dictionary=None, image_size=256,
-                                       margin=0.25, bb_type='gt', test_data='full', augment_basic=True,
-                                       augment_texture=False, p_texture=0, augment_geom=False, p_geom=0):
+def augment_menpo_img_geom(img, p_geom=0):
+    img = img.copy()
+    if p_geom > 0.5:
+        lms_geom_warp=deform_face_geometric_style(img.landmarks['PTS'].points.copy(),p_scale=p_geom,p_shift=p_geom)
+        img = warp_face_image_tps(img,PointCloud(lms_geom_warp))
+    return img
+
+
+def warp_face_image_tps(img,new_shape):
+    tps = ThinPlateSplines(new_shape, img.landmarks['PTS'])
+    img_warp=img.warp_to_shape(img.shape,tps)
+    img_warp.landmarks['PTS']=new_shape
+    return img_warp
+
+
+def load_menpo_image_list_artistic_aug(
+        img_dir, train_crop_dir, img_dir_ns, mode, bb_dictionary=None, image_size=256, margin=0.25,
+        bb_type='gt', test_data='full',augment_basic=True, augment_texture=False, p_texture=0,
+        augment_geom=False, p_geom=0):
+
     def crop_to_face_image_gt(img):
         return crop_to_face_image(img, bb_dictionary, gt=True, margin=margin, image_size=image_size)
 
@@ -160,6 +178,9 @@ def load_menpo_image_list_artistic_aug(img_dir, train_crop_dir, img_dir_ns, mode
 
     def augment_menpo_img_ns_rand(img):
         return augment_menpo_img_ns(img, img_dir_ns, p_ns=1. * (np.random.rand() <= p_texture))
+
+    def augment_menpo_img_geom_rand(img):
+        return augment_menpo_img_geom(img, p_geom=1. * (np.random.rand() <= p_geom))
 
     if mode is 'TRAIN':
         img_set_dir = os.path.join(img_dir, train_crop_dir)
@@ -176,9 +197,12 @@ def load_menpo_image_list_artistic_aug(img_dir, train_crop_dir, img_dir_ns, mode
     else:
         if augment_texture:
             out_image_list = out_image_list.map(augment_menpo_img_ns_rand)
+        if augment_geom:
+            out_image_list = out_image_list.map(augment_menpo_img_geom_rand)
         if augment_basic:
             out_image_list = out_image_list.map(augment_face_image)
     return out_image_list
+
 
 '''********* heat-maps and image loading functions *********'''
 
