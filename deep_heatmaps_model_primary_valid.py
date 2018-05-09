@@ -5,7 +5,6 @@ import os
 import numpy as np
 from image_utils import *
 from ops import *
-from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow import contrib
 
@@ -14,37 +13,29 @@ class DeepHeatmapsModel(object):
 
     """facial landmark localization Network"""
 
-    def __init__(self, mode='TRAIN', train_iter=500000, learning_rate=1e-8, image_size=256, c_dim=3, batch_size=10,
-                 num_landmarks=68, augment_basic=True, augment_texture=False, augment_geom=False, img_path='data',
-                 save_log_path='logs', save_sample_path='sample', save_model_path='model',
+    def __init__(self, mode='TRAIN', train_iter=500000, learning_rate=1e-8, momentum=0.95, step=80000, gamma=0.1,
+                 batch_size=10, image_size=256, c_dim=3,  num_landmarks=68,
+                 augment_basic=True, basic_start=0, augment_texture=False, p_texture=0., augment_geom=False,
+                 p_geom=0., artistic_start=0, artistic_step=2, img_path='data',
+                 save_log_path='logs', save_sample_path='sample', save_model_path='model', test_data='full',
                  test_model_path='model/deep_heatmaps_primary-1000'):
 
         # values to print to save parameter:
-
-        # optimizer parameters
-        momentum = 0.95
-        step = 80000  # for lr decay
-        gamma = 0.1  # for lr decay
 
         # network init parameters
         weight_initializer = 'xavier'  # random_normal or xavier
         weight_initializer_std = 0.01
         bias_initializer = 0.0
 
+        # images/maps loading parameters
         sigma = 1.5  # sigma for heatmap generation
         scale = '1'  # scale for image normalization '255' / '1' / '0'
         margin = 0.25  # for face crops
         bb_type = 'gt'  # gt/init
 
         valid_size = 100
-        test_data = 'full'  # if mode is TEST, this choose the set to use full/common/challenging/test
         train_crop_dir = 'crop_gt_margin_0.25'
         img_dir_ns = os.path.join(img_path, train_crop_dir+'_ns')
-        p_texture = 0.  # initial probability of artistic texture augmentation
-        p_geom = 0.  # initial probability of artistic geometric augmentation
-        artistic_step = 2  # increase probability of artistic augmentation every X epochs
-        artistic_start = 3  # min epoch to start artistic augmentation
-        basic_start = 1  # min epoch to start basic augmentation
 
         # sampling and logging parameters
         self.print_every = 10
@@ -89,7 +80,7 @@ class DeepHeatmapsModel(object):
         self.sigma = sigma  # sigma for heatmap generation
         self.scale = scale  # scale for image normalization '255' / '1' / '0'
 
-        self.test_data = test_data  # if mode is TEST, this choose the set to use full/common/challenging/test
+        self.test_data = test_data  # if mode is TEST, this choose the set to use full/common/challenging/test/art
         self.train_crop_dir = train_crop_dir
         self.img_dir_ns = img_dir_ns
         self.augment_basic = augment_basic  # perform basic augmentation (rotation,flip,crop)
@@ -504,7 +495,7 @@ class DeepHeatmapsModel(object):
 
                 p_texture = self.p_texture
                 p_geom = self.p_geom
-                artistic_reload = True
+                artistic_reload = False
                 basic_reload = True
                 for step in range(self.train_iter + 1):
 
