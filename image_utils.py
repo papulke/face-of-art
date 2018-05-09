@@ -204,6 +204,23 @@ def load_menpo_image_list_artistic_aug(
     return out_image_list
 
 
+def reload_img_menpo_list_artistic_aug_train(
+        img_dir, train_crop_dir, img_dir_ns, mode, train_inds, debug=False, debug_size=20, image_size=256,
+        augment_basic=True, augment_texture=False, p_texture=0, augment_geom=False, p_geom=0):
+
+    img_menpo_list = load_menpo_image_list_artistic_aug(
+        img_dir=img_dir, train_crop_dir=train_crop_dir, img_dir_ns=img_dir_ns, mode=mode,image_size=image_size,
+        augment_basic=augment_basic, augment_texture=augment_texture, p_texture=p_texture, augment_geom=augment_geom,
+        p_geom=p_geom)
+
+    if debug:
+        img_menpo_list = img_menpo_list[:debug_size]
+
+    img_menpo_list_train = img_menpo_list[train_inds]
+
+    return img_menpo_list_train
+
+
 '''********* heat-maps and image loading functions *********'''
 
 
