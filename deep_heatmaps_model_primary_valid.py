@@ -40,11 +40,11 @@ class DeepHeatmapsModel(object):
         test_data = 'full'  # if mode is TEST, this choose the set to use full/common/challenging/test
         train_crop_dir = 'crop_gt_margin_0.25'
         img_dir_ns = os.path.join(img_path, train_crop_dir+'_ns')
-        augment_basic = augment_basic  # perform basic augmentation (rotation,flip,crop)
-        augment_texture = augment_texture # perform artistic texture augmentation (NS)
-        p_texture = 1
-        augment_geom = augment_geom  # perform artistic geometric augmentation
-        p_geom = 1
+        p_texture = 0.  # initial probability of artistic texture augmentation
+        p_geom = 0.  # initial probability of artistic geometric augmentation
+        artistic_step = 2  # increase probability of artistic augmentation every X epochs
+        artistic_start = 3  # min epoch to start artistic augmentation
+        basic_start = 1  # min epoch to start basic augmentation
 
         # sampling and logging parameters
         self.print_every = 10
@@ -89,7 +89,17 @@ class DeepHeatmapsModel(object):
         self.sigma = sigma  # sigma for heatmap generation
         self.scale = scale  # scale for image normalization '255' / '1' / '0'
 
-        self.test_data =test_data  # if mode is TEST, this choose the set to use full/common/challenging/test
+        self.test_data = test_data  # if mode is TEST, this choose the set to use full/common/challenging/test
+        self.train_crop_dir = train_crop_dir
+        self.img_dir_ns = img_dir_ns
+        self.augment_basic = augment_basic  # perform basic augmentation (rotation,flip,crop)
+        self.augment_texture = augment_texture  # perform artistic texture augmentation (NS)
+        self.p_texture = p_texture  # initial probability of artistic texture augmentation
+        self.augment_geom = augment_geom  # perform artistic geometric augmentation
+        self.p_geom = p_geom  # initial probability of artistic geometric augmentation
+        self.artistic_step = artistic_step  # increase probability of artistic augmentation every X epochs
+        self.artistic_start = artistic_start  # min epoch to start artistic augmentation
+        self.basic_start = basic_start  # min epoch to start basic augmentation
 
         # load image, bb and landmark data using menpo
         self.bb_dir = os.path.join(img_path, 'Bounding_Boxes')
@@ -98,9 +108,10 @@ class DeepHeatmapsModel(object):
             self.img_menpo_list = mio.import_images(os.path.join(img_path + 'art_set'), verbose=True)
         else:
             self.bb_dictionary = load_bb_dictionary(self.bb_dir, mode, test_data=self.test_data)
-            self.img_menpo_list =load_menpo_image_list_artistic_aug(
-                img_path, train_crop_dir, img_dir_ns, mode,bb_dictionary=self.bb_dictionary, image_size=self.image_size,
-                margin=margin, bb_type=bb_type, test_data=self.test_data, augment_basic=augment_basic,
+            self.img_menpo_list = load_menpo_image_list_artistic_aug(
+                img_path, train_crop_dir, img_dir_ns, mode,bb_dictionary=self.bb_dictionary,
+                image_size=self.image_size, margin=margin, bb_type=bb_type, test_data=self.test_data,
+                augment_basic=(augment_basic and basic_start == 0),
                 augment_texture=augment_texture, p_texture=p_texture, augment_geom=augment_geom, p_geom=p_geom)
 
         if self.debug:
@@ -117,7 +128,7 @@ class DeepHeatmapsModel(object):
             np.random.shuffle(img_inds)
 
             val_inds = img_inds[:self.valid_size]
-            train_inds = img_inds[self.valid_size:]
+            self.train_inds = img_inds[self.valid_size:]
             self.valid_img_menpo_list = self.img_menpo_list[val_inds]
 
             self.valid_images_loaded, _, self.valid_gt_maps_loaded, self.valid_landmarks_loaded = \
@@ -127,7 +138,7 @@ class DeepHeatmapsModel(object):
             if self.valid_size > self.sample_grid:
                 self.valid_gt_maps_loaded =self.valid_gt_maps_loaded[:self.sample_grid]
 
-            self.img_menpo_list = self.img_menpo_list[train_inds]
+            self.img_menpo_list = self.img_menpo_list[self.train_inds]
 
     def add_placeholders(self):
 
@@ -367,11 +378,16 @@ class DeepHeatmapsModel(object):
             l_nme = tf.summary.scalar('l_nme', self.nme_loss)
             l_v_nme = tf.summary.scalar('valid_l_nme', self.valid_nme_loss)
 
+            self.p_geom_log = tf.placeholder(tf.float32, [])
+            self.p_texture_log = tf.placeholder(tf.float32, [])
+            p_geom = tf.summary.scalar('p_geom', self.p_geom_log)
+            p_texture = tf.summary.scalar('p_texture', self.p_texture_log)
+
             if self.log_histograms:
-                self.batch_summary_op = tf.summary.merge([l_total, l_nme, l_v_nme, var_summary, grad_summary,
-                                                          activ_summary])
+                self.batch_summary_op = tf.summary.merge([p_texture, p_geom, l_total, l_nme, l_v_nme, var_summary,
+                                                          grad_summary, activ_summary])
             else:
-                self.batch_summary_op = tf.summary.merge([l_total, l_nme, l_v_nme])
+                self.batch_summary_op = tf.summary.merge([p_texture, p_geom, l_total, l_nme, l_v_nme])
             if self.sample_to_log:
                 img_map_summary =tf.summary.image('compare_map_to_gt',self.log_image_map)
                 map_channels_summary = tf.summary.image('compare_map_channels_to_gt', self.log_map_channels)
@@ -482,12 +498,14 @@ class DeepHeatmapsModel(object):
                 epoch = 0
 
                 num_train_images = len(self.img_menpo_list)
-                if self.debug:
-                    num_train_images=self.debug_data_size
 
                 img_inds = np.arange(num_train_images)
                 np.random.shuffle(img_inds)
 
+                p_texture = self.p_texture
+                p_geom = self.p_geom
+                artistic_reload = True
+                basic_reload = True
                 for step in range(self.train_iter + 1):
 
                     # get batch images
@@ -496,6 +514,34 @@ class DeepHeatmapsModel(object):
                     if step > 0 and j == 0:
                         np.random.shuffle(img_inds)  # shuffle data if finished epoch
                         epoch += 1
+                        artistic_reload = True
+
+                    # add basic augmentation (if basic_start > 0 and augment_basic is True)
+                    if basic_reload and (epoch >= self.basic_start) and self.basic_start > 0 and self.augment_basic:
+                        basic_reload = False
+                        self.img_menpo_list = reload_img_menpo_list_artistic_aug_train(
+                            self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
+                            debug=self.debug, debug_size=self.debug_data_size, image_size=self.image_size,
+                            augment_basic=self.augment_basic, augment_texture=self.augment_texture, p_texture=p_texture,
+                            augment_geom=self.augment_geom, p_geom=p_geom)
+                        print "****** adding basic augmentation ******"
+
+                    # increase artistic augmentation probability
+                    if (epoch % self.artistic_step == 0 and epoch >= self.artistic_start) and\
+                            (self.augment_geom or self.augment_texture) and artistic_reload:
+                        artistic_reload = False
+                        p_geom = 1.- 0.95 ** (epoch/self.artistic_step)
+                        p_texture = 1. - 0.95 ** (epoch/self.artistic_step)
+
+                        self.img_menpo_list = reload_img_menpo_list_artistic_aug_train(
+                            self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
+                            debug=self.debug, debug_size=self.debug_data_size, image_size=self.image_size,
+                            augment_basic=(self.augment_basic and epoch >= self.basic_start),
+                            augment_texture=self.augment_texture, p_texture=p_texture,
+                            augment_geom=self.augment_geom, p_geom=p_geom)
+
+                        print "****** increasing artistic augmentation probability ******"
+                        print "****** p_texture:", p_texture, "p_geom:", p_geom, "******"
 
                     batch_inds = img_inds[j * self.batch_size:(j + 1) * self.batch_size]
 
@@ -512,7 +558,8 @@ class DeepHeatmapsModel(object):
                     if step == 0 or (step + 1) % self.print_every == 0:
 
                         if self.compute_nme is False and self.valid_size == 0:
-                            feed_dict_log = feed_dict_train
+                            feed_dict_log = {self.images: batch_images, self.heatmaps_small: batch_maps_small,
+                                             self.p_geom_log: p_geom, self.p_texture_log: p_texture}
 
                         elif self.compute_nme and self.valid_size == 0:
                             batch_maps_small_pred = sess.run(self.pred_hm_p, {self.images: batch_images})
@@ -522,7 +569,8 @@ class DeepHeatmapsModel(object):
 
                             feed_dict_log = {
                                 self.images: batch_images, self.heatmaps_small: batch_maps_small,
-                                self.train_lms_small: batch_lms_small, self.train_pred_lms_small: pred_lms_small}
+                                self.train_lms_small: batch_lms_small, self.train_pred_lms_small: pred_lms_small,
+                                self.p_geom_log: p_geom, self.p_texture_log: p_texture}
 
                         elif self.compute_nme and self.valid_size > 0:
                             valid_pred_lms = self.predict_landmarks_in_batches_loaded(self.valid_images_loaded,sess)
@@ -536,14 +584,16 @@ class DeepHeatmapsModel(object):
                                 self.images: batch_images, self.heatmaps_small: batch_maps_small,
                                 self.train_lms_small: batch_lms_small, self.train_pred_lms_small: pred_lms_small,
                                 self.valid_lms_small: self.valid_landmarks_loaded,
-                                self.valid_pred_lms_small: valid_pred_lms}
+                                self.valid_pred_lms_small: valid_pred_lms,
+                                self.p_geom_log: p_geom, self.p_texture_log: p_texture}
 
                         else:
                             valid_pred_lms = self.predict_landmarks_in_batches_loaded(self.valid_images_loaded,sess)
                             feed_dict_log = {
                                 self.images: batch_images, self.heatmaps_small: batch_maps_small,
                                 self.valid_lms_small: self.valid_landmarks_loaded,
-                                self.valid_pred_lms_small: valid_pred_lms}
+                                self.valid_pred_lms_small: valid_pred_lms,
+                                self.p_geom_log: p_geom, self.p_texture_log: p_texture}
 
                         summary, l_t, l_nme, l_v_nme = sess.run(
                             [self.batch_summary_op, self.total_loss, self.nme_loss, self.valid_nme_loss], feed_dict_log)
