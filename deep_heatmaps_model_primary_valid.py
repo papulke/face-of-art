@@ -14,7 +14,7 @@ class DeepHeatmapsModel(object):
     """facial landmark localization Network"""
 
     def __init__(self, mode='TRAIN', train_iter=500000, learning_rate=1e-8, momentum=0.95, step=80000, gamma=0.1,
-                 batch_size=10, image_size=256, c_dim=3,  num_landmarks=68,
+                 batch_size=10, image_size=256, c_dim=3, num_landmarks=68,
                  augment_basic=True, basic_start=0, augment_texture=False, p_texture=0., augment_geom=False,
                  p_geom=0., artistic_start=0, artistic_step=2, img_path='data',
                  save_log_path='logs', save_sample_path='sample', save_model_path='model', test_data='full',
@@ -39,7 +39,7 @@ class DeepHeatmapsModel(object):
 
         # sampling and logging parameters
         self.print_every = 10
-        self.save_every = 5000
+        self.save_every = 500000
         self.sample_every = 1000
         self.sample_grid = 9
         self.log_histograms = False
@@ -130,6 +130,9 @@ class DeepHeatmapsModel(object):
                 self.valid_gt_maps_loaded =self.valid_gt_maps_loaded[:self.sample_grid]
 
             self.img_menpo_list = self.img_menpo_list[self.train_inds]
+
+            self.epoch_inds_shuffle = train_val_shuffle_inds_per_epoch(
+                val_inds, self.train_inds, train_iter, batch_size, save_log_path)
 
     def add_placeholders(self):
 
@@ -260,7 +263,7 @@ class DeepHeatmapsModel(object):
             else:
                 self.nme_loss = tf.constant(0.)
 
-            if self.valid_size > 0:
+            if self.valid_size > 0 and self.compute_nme:
                 self.valid_nme_loss = l2_loss_norm_eyes(self.valid_pred_lms_small,self.valid_lms_small)
             else:
                 self.valid_nme_loss = tf.constant(0.)
@@ -455,6 +458,7 @@ class DeepHeatmapsModel(object):
                 print ('NME on ' + self.test_data + ': ' + str(nme))
 
     def train(self):
+            # set random seed
             tf.set_random_seed(1234)
             np.random.seed(1234)
             # build a graph
@@ -485,26 +489,22 @@ class DeepHeatmapsModel(object):
                 print
                 print('*** Start Training ***')
 
-                # set random seed
                 epoch = 0
-
                 num_train_images = len(self.img_menpo_list)
-
-                img_inds = np.arange(num_train_images)
-                np.random.shuffle(img_inds)
-
+                img_inds = self.epoch_inds_shuffle[epoch,:]
                 p_texture = self.p_texture
                 p_geom = self.p_geom
                 artistic_reload = False
                 basic_reload = True
+
                 for step in range(self.train_iter + 1):
 
                     # get batch images
                     j = step % int(float(num_train_images) / float(self.batch_size))
 
                     if step > 0 and j == 0:
-                        np.random.shuffle(img_inds)  # shuffle data if finished epoch
                         epoch += 1
+                        img_inds = self.epoch_inds_shuffle[epoch, :]  # get next shuffled inds
                         artistic_reload = True
 
                     # add basic augmentation (if basic_start > 0 and augment_basic is True)

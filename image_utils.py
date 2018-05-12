@@ -518,3 +518,24 @@ def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, s
 
     return merged
 
+
+def train_val_shuffle_inds_per_epoch(valid_inds, train_inds, train_iter, batch_size, log_path, save_log=True):
+    np.random.seed(0)
+    num_train_images = len(train_inds)
+    num_epochs = int(np.ceil((1. * train_iter) / (1. * num_train_images / batch_size)))
+    epoch_inds_shuffle = np.zeros((num_epochs, num_train_images)).astype(int)
+    img_inds = np.arange(num_train_images)
+    for i in range(num_epochs):
+        np.random.shuffle(img_inds)
+        epoch_inds_shuffle[i, :] = img_inds
+
+    if save_log:
+        with open(os.path.join(log_path, "train_val_shuffle_inds.csv"), "wb") as f:
+            f.write(b'valid inds\n')
+            np.savetxt(f, valid_inds.reshape(1, -1), fmt='%i', delimiter=",")
+            f.write(b'train inds\n')
+            np.savetxt(f, train_inds.reshape(1, -1), fmt='%i', delimiter=",")
+            f.write(b'shuffle inds\n')
+            np.savetxt(f, epoch_inds_shuffle, fmt='%i', delimiter=",")
+
+    return epoch_inds_shuffle
