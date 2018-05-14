@@ -39,7 +39,7 @@ class DeepHeatmapsModel(object):
 
         # sampling and logging parameters
         self.print_every = 10
-        self.save_every = 500000
+        self.save_every = 20000
         self.sample_every = 1000
         self.sample_grid = 9
         self.log_histograms = False

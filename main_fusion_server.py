@@ -1,9 +1,10 @@
 import tensorflow as tf
 from deep_heatmaps_model_primary_fusion import DeepHeatmapsModel
+import os
 
 # data_dir ='/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
 data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
-
+output_dir = os.getcwd()
 
 flags = tf.app.flags
 
@@ -39,19 +40,28 @@ flags.DEFINE_float('p_geom', 0., 'initial probability of artistic geometric augm
 flags.DEFINE_integer('artistic_step', 10, 'increase probability of artistic augmentation every X epochs')
 flags.DEFINE_integer('artistic_start', 0, 'min epoch to start artistic augmentation')
 
+# directory of test
+flags.DEFINE_string('output_dir', output_dir, "directory for saving test")
 
 FLAGS = flags.FLAGS
+
+if not os.path.exists(FLAGS.output_dir):
+    os.mkdir(FLAGS.output_dir)
 
 
 def main(_):
 
+    save_model_path = os.path.join(FLAGS.output_dir, FLAGS.save_model_path)
+    save_sample_path = os.path.join(FLAGS.output_dir, FLAGS.save_sample_path)
+    save_log_path = os.path.join(FLAGS.output_dir, FLAGS.save_log_path)
+
     # create directories if not exist
-    if not tf.gfile.Exists(FLAGS.save_model_path):
-        tf.gfile.MakeDirs(FLAGS.save_model_path)
-    if not tf.gfile.Exists(FLAGS.save_sample_path):
-        tf.gfile.MakeDirs(FLAGS.save_sample_path)
-    if not tf.gfile.Exists(FLAGS.save_log_path):
-        tf.gfile.MakeDirs(FLAGS.save_log_path)
+    if not os.path.exists(save_model_path):
+        os.mkdir(save_model_path)
+    if not os.path.exists(save_sample_path):
+        os.mkdir(save_sample_path)
+    if not os.path.exists(save_log_path):
+        os.mkdir(save_log_path)
 
     model = DeepHeatmapsModel(mode=FLAGS.mode, train_iter=FLAGS.train_iter, learning_rate=FLAGS.learning_rate,
                               momentum=FLAGS.momentum, step=FLAGS.step, gamma=FLAGS.gamma, batch_size=FLAGS.batch_size,
@@ -60,8 +70,8 @@ def main(_):
                               augment_texture=FLAGS.augment_texture, p_texture=FLAGS.p_texture,
                               augment_geom=True, p_geom=FLAGS.p_geom,
                               artistic_start=FLAGS.artistic_start, artistic_step=FLAGS.artistic_step,
-                              img_path=FLAGS.img_path, save_log_path=FLAGS.save_log_path,
-                              save_sample_path=FLAGS.save_sample_path, save_model_path=FLAGS.save_model_path,
+                              img_path=FLAGS.img_path, save_log_path=save_log_path,
+                              save_sample_path=save_sample_path, save_model_path=save_model_path,
                               test_data=FLAGS.test_data, test_model_path=FLAGS.test_model_path)
 
     if FLAGS.mode == 'TRAIN':
