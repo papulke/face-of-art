@@ -18,7 +18,8 @@ class DeepHeatmapsModel(object):
                  augment_basic=True, basic_start=0, augment_texture=False, p_texture=0., augment_geom=False,
                  p_geom=0., artistic_start=0, artistic_step=2, img_path='data',
                  save_log_path='logs', save_sample_path='sample', save_model_path='model', test_data='full',
-                 test_model_path='model/deep_heatmaps_primary-1000'):
+                 test_model_path='model/deep_heatmaps_primary-1000', load_pretrain=False,
+                 pre_train_path='saved_models/model/deep_heatmaps-50000'):
 
         # values to print to save parameter:
 
@@ -52,6 +53,9 @@ class DeepHeatmapsModel(object):
 
         self.config = tf.ConfigProto()
         self.config.gpu_options.allow_growth = True
+
+        self.load_pretrain = load_pretrain
+        self.pre_train_path = pre_train_path
 
         self.mode = mode
         self.train_iter = train_iter
@@ -481,6 +485,13 @@ class DeepHeatmapsModel(object):
             with tf.Session(config=self.config) as sess:
 
                 tf.global_variables_initializer().run()
+
+                # load pre trained weights if load_pretrain==True
+                if self.load_pretrain:
+                    print
+                    print('*** loading pre-trained weights from: '+self.pre_train_path+' ***')
+                    loader = tf.train.Saver()
+                    loader.restore(sess, self.pre_train_path)
 
                 # create model saver and file writer
                 summary_writer = tf.summary.FileWriter(logdir=self.save_log_path, graph=tf.get_default_graph())

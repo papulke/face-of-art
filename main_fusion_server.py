@@ -4,6 +4,7 @@ import os
 
 # data_dir ='/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
 data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
+pre_train_path = 'saved_models/0.01/model/deep_heatmaps-50000'
 output_dir = os.getcwd()
 
 flags = tf.app.flags
@@ -17,6 +18,11 @@ flags.DEFINE_string('save_log_path', 'logs', "directory for saving the log file"
 flags.DEFINE_string('img_path', data_dir, "data directory")
 flags.DEFINE_string('test_model_path', 'model/deep_heatmaps-5', "saved model to test")
 flags.DEFINE_string('test_data','full', 'test set to use full/common/challenging/test/art')
+
+# pretrain parameters
+flags.DEFINE_string('pre_train_path', pre_train_path, 'pretrained model path')
+flags.DEFINE_bool('load_pretrain', False, "load pretrained weight?")
+flags.DEFINE_bool('load_primary_only', True, "load primary weight only?")
 
 flags.DEFINE_integer('image_size', 256, "image size")
 flags.DEFINE_integer('c_dim', 3, "color channels")
@@ -39,6 +45,7 @@ flags.DEFINE_float('p_texture', 0., 'initial probability of artistic texture aug
 flags.DEFINE_float('p_geom', 0., 'initial probability of artistic geometric augmentation')
 flags.DEFINE_integer('artistic_step', 10, 'increase probability of artistic augmentation every X epochs')
 flags.DEFINE_integer('artistic_start', 0, 'min epoch to start artistic augmentation')
+
 
 # directory of test
 flags.DEFINE_string('output_dir', output_dir, "directory for saving test")
@@ -72,7 +79,9 @@ def main(_):
                               artistic_start=FLAGS.artistic_start, artistic_step=FLAGS.artistic_step,
                               img_path=FLAGS.img_path, save_log_path=save_log_path,
                               save_sample_path=save_sample_path, save_model_path=save_model_path,
-                              test_data=FLAGS.test_data, test_model_path=FLAGS.test_model_path)
+                              test_data=FLAGS.test_data, test_model_path=FLAGS.test_model_path,
+                              load_pretrain=FLAGS.load_pretrain, load_primary_only=FLAGS.load_primary_only,
+                              pre_train_path=FLAGS.pre_train_path)
 
     if FLAGS.mode == 'TRAIN':
         model.train()
