@@ -75,7 +75,7 @@ def main(_):
                               image_size=FLAGS.image_size, c_dim=FLAGS.c_dim, num_landmarks=FLAGS.num_landmarks,
                               augment_basic=FLAGS.augment_basic, basic_start=FLAGS.basic_start,
                               augment_texture=FLAGS.augment_texture, p_texture=FLAGS.p_texture,
-                              augment_geom=True, p_geom=FLAGS.p_geom,
+                              augment_geom=FLAGS.augment_geom, p_geom=FLAGS.p_geom,
                               artistic_start=FLAGS.artistic_start, artistic_step=FLAGS.artistic_step,
                               img_path=FLAGS.img_path, save_log_path=save_log_path,
                               save_sample_path=save_sample_path, save_model_path=save_model_path,

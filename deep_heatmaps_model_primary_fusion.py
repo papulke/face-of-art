@@ -44,7 +44,7 @@ class DeepHeatmapsModel(object):
 
         # sampling and logging parameters
         self.print_every = 10
-        self.save_every = 20000
+        self.save_every = 5000
         self.sample_every = 1000
         self.sample_grid = 9
         self.log_histograms = False
@@ -114,8 +114,9 @@ class DeepHeatmapsModel(object):
                 img_path, train_crop_dir, img_dir_ns, mode, bb_dictionary=self.bb_dictionary,
                 image_size=self.image_size,
                 margin=margin, bb_type=bb_type, test_data=self.test_data,
-                augment_basic=(augment_basic and basic_start == 0), augment_texture=augment_texture,
-                p_texture=p_texture, augment_geom=augment_geom, p_geom=p_geom)
+                augment_basic=(augment_basic and basic_start == 0),
+                augment_texture=(augment_texture and artistic_start == 0), p_texture=p_texture,
+                augment_geom=(augment_geom and artistic_start == 0), p_geom=p_geom)
 
         if self.debug:
             self.img_menpo_list = self.img_menpo_list[:self.debug_data_size]
