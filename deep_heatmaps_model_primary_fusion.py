@@ -645,11 +645,24 @@ class DeepHeatmapsModel(object):
                         print "****** adding basic augmentation ******"
 
                     # increase artistic augmentation probability
-                    if (epoch % self.artistic_step == 0 and epoch >= self.artistic_start) and \
-                            (self.augment_geom or self.augment_texture) and artistic_reload:
+                    if ((epoch % self.artistic_step == 0 and epoch >= self.artistic_start) or
+                            (epoch == self.artistic_start)) and (self.augment_geom or self.augment_texture)\
+                            and artistic_reload:
                         artistic_reload = False
-                        p_geom = 1. - 0.95 ** (epoch / self.artistic_step)
-                        p_texture = 1. - 0.95 ** (epoch / self.artistic_step)
+
+                        if epoch == self.artistic_start:
+                            print "****** adding artistic augmentation ******"
+                            print "****** augment_geom:", self.augment_geom, "p_geom:", p_geom, "******"
+                            print "****** augment_texture:", self.augment_texture, "p_texture:", p_texture, "******"
+
+                        if epoch % self.artistic_step == 0:
+                            print "****** increasing artistic augmentation probability ******"
+
+                            p_geom = 1. - 0.95 ** (epoch / self.artistic_step)
+                            p_texture = 1. - 0.95 ** (epoch / self.artistic_step)
+
+                            print "****** augment_geom:", self.augment_geom, "p_geom:", p_geom, "******"
+                            print "****** augment_texture:", self.augment_texture, "p_texture:", p_texture, "******"
 
                         self.img_menpo_list = reload_img_menpo_list_artistic_aug_train(
                             self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
@@ -657,9 +670,6 @@ class DeepHeatmapsModel(object):
                             augment_basic=(self.augment_basic and epoch >= self.basic_start),
                             augment_texture=self.augment_texture, p_texture=p_texture,
                             augment_geom=self.augment_geom, p_geom=p_geom)
-
-                        print "****** increasing artistic augmentation probability ******"
-                        print "****** p_texture:", p_texture, "p_geom:", p_geom, "******"
 
                     batch_inds = img_inds[j * self.batch_size:(j + 1) * self.batch_size]
 
