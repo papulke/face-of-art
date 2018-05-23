@@ -53,6 +53,9 @@ def load_bb_dictionary(bb_dir, mode, test_data='full'):
         elif test_data is 'full':
             bb_dirs = \
                 ['bounding_boxes_ibug.mat', 'bounding_boxes_helen_testset.mat', 'bounding_boxes_lfpw_testset.mat']
+        elif test_data is 'training':
+            bb_dirs = \
+                ['bounding_boxes_afw.mat', 'bounding_boxes_helen_trainset.mat', 'bounding_boxes_lfpw_trainset.mat']
         else:
             bb_dirs=None
 
@@ -90,7 +93,7 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
     return face_crop
 
 
-def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=True):
+def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=False):
     lim = image_size - crop_size
     min_crop_inds = np.random.randint(0, lim, 2)
     max_crop_inds = min_crop_inds + crop_size
