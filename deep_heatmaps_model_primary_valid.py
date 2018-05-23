@@ -51,6 +51,9 @@ class DeepHeatmapsModel(object):
         self.debug_data_size = 20
         self.compute_nme = True
 
+        # for fine-tuning, choose reset_training_op==True. when resuming training, reset_training_op==False
+        self.reset_training_op = False
+
         self.config = tf.ConfigProto()
         self.config.gpu_options.allow_growth = True
 
@@ -493,6 +496,16 @@ class DeepHeatmapsModel(object):
                     print('*** loading pre-trained weights from: '+self.pre_train_path+' ***')
                     loader = tf.train.Saver()
                     loader.restore(sess, self.pre_train_path)
+                    print("*** Model restore finished, current global step: %d" % global_step.eval())
+
+                # for fine-tuning, choose reset_training_op==True. when resuming training, reset_training_op==False
+                if self.reset_training_op:
+                    print "resetting optimizer and global step"
+                    opt_var_list = [optimizer.get_slot(var, name) for name in optimizer.get_slot_names()
+                                     for var in tf.global_variables() if optimizer.get_slot(var, name) is not None]
+                    opt_var_list_init = tf.variables_initializer(opt_var_list)
+                    opt_var_list_init.run()
+                    sess.run(global_step.initializer)
 
                 # create model saver and file writer
                 summary_writer = tf.summary.FileWriter(logdir=self.save_log_path, graph=tf.get_default_graph())
