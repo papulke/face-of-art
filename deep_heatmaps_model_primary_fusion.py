@@ -611,7 +611,9 @@ class DeepHeatmapsModel(object):
                     else:
                         loader = tf.train.Saver()
                     loader.restore(sess, self.pre_train_path)
+                    print("*** Model restore finished, current global step: %d" % global_step.eval())
 
+                # TODO: maybe add or self.load_primary_only to next if statement
                 # for fine-tuning, choose reset_training_op==True. when resuming training, reset_training_op==False
                 if self.reset_training_op:
                     print "resetting optimizer and global step"
