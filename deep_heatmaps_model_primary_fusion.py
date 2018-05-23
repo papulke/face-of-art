@@ -18,7 +18,7 @@ class DeepHeatmapsModel(object):
                  augment_basic=True, basic_start=0, augment_texture=False, p_texture=0., augment_geom=False,
                  p_geom=0., artistic_start=0, artistic_step=2, img_path='data',
                  save_log_path='logs', save_sample_path='sample', save_model_path='model', test_data='full',
-                 test_model_path='model/deep_heatmaps_fusion-1000', load_pretrain=False, load_primary_only=True,
+                 test_model_path='model/deep_heatmaps-1000', load_pretrain=False, load_primary_only=True,
                  pre_train_path='saved_models/model/deep_heatmaps-50000'):
 
         # values to print to save parameter:
@@ -831,3 +831,26 @@ class DeepHeatmapsModel(object):
                                 scipy.misc.imsave(sample_path_ch_maps_small, map_per_channel_small)
 
                 print('*** Finished Training ***')
+
+    def get_maps_image(self, test_image, reuse=None):
+        self.add_placeholders()
+        # build model
+        pred_hm_p, pred_hm_f = self.heatmaps_network(self.images, reuse=reuse)
+
+        with tf.Session(config=self.config) as sess:
+            # load trained parameters
+            saver = tf.train.Saver()
+            saver.restore(sess, self.test_model_path)
+            _, model_name = os.path.split(self.test_model_path)
+
+            test_image = test_image.pixels_with_channels_at_back().astype('float32')
+            if self.scale is '255':
+                test_image *= 255
+            elif self.scale is '0':
+                test_image = 2 * test_image - 1
+
+            test_image_map_small, test_image_map = sess.run(
+                [pred_hm_p, pred_hm_f], {self.images: np.expand_dims(test_image, 0)})
+
+        return test_image_map_small, test_image_map
+
