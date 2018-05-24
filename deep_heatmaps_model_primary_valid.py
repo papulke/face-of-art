@@ -514,20 +514,21 @@ class DeepHeatmapsModel(object):
                 print
                 print('*** Start Training ***')
 
-                epoch = 0
+                resume_step = global_step.eval()
                 num_train_images = len(self.img_menpo_list)
-                img_inds = self.epoch_inds_shuffle[epoch,:]
+                epoch = int(resume_step / (float(num_train_images) / float(self.batch_size)))
+                img_inds = self.epoch_inds_shuffle[epoch, :]
                 p_texture = self.p_texture
                 p_geom = self.p_geom
                 artistic_reload = False
                 basic_reload = True
 
-                for step in range(self.train_iter + 1):
+                for step in range(resume_step, self.train_iter + 1):
 
                     # get batch images
                     j = step % int(float(num_train_images) / float(self.batch_size))
 
-                    if step > 0 and j == 0:
+                    if step > resume_step and j == 0:
                         epoch += 1
                         img_inds = self.epoch_inds_shuffle[epoch, :]  # get next shuffled inds
                         artistic_reload = True
@@ -581,7 +582,7 @@ class DeepHeatmapsModel(object):
                     sess.run(train_op, feed_dict_train)
 
                     # save to log and print status
-                    if step == 0 or (step + 1) % self.print_every == 0:
+                    if step == resume_step or (step + 1) % self.print_every == 0:
 
                         if self.compute_nme is False and self.valid_size == 0:
                             feed_dict_log = {self.images: batch_images, self.heatmaps_small: batch_maps_small,
@@ -635,7 +636,7 @@ class DeepHeatmapsModel(object):
                         print ('model/deep-heatmaps-%d saved' % (step + 1))
 
                     # save images
-                    if step == 0 or (step + 1) % self.sample_every == 0:
+                    if step == resume_step or (step + 1) % self.sample_every == 0:
 
                             if not self.compute_nme:
                                 batch_maps_small_pred = sess.run(self.pred_hm_p,  {self.images: batch_images})
