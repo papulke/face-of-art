@@ -93,7 +93,40 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
     return face_crop
 
 
-def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=False):
+def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=True):
+    jaw_indices = np.arange(0, 17)
+    lbrow_indices = np.arange(17, 22)
+    rbrow_indices = np.arange(22, 27)
+    upper_nose_indices = np.arange(27, 31)
+    lower_nose_indices = np.arange(31, 36)
+    leye_indices = np.arange(36, 42)
+    reye_indices = np.arange(42, 48)
+    outer_mouth_indices = np.arange(48, 60)
+    inner_mouth_indices = np.arange(60, 68)
+
+    mirrored_parts_68 = np.hstack([
+        jaw_indices[::-1], rbrow_indices[::-1], lbrow_indices[::-1],
+        upper_nose_indices, lower_nose_indices[::-1],
+        np.roll(reye_indices[::-1], 4), np.roll(leye_indices[::-1], 4),
+        np.roll(outer_mouth_indices[::-1], 7),
+        np.roll(inner_mouth_indices[::-1], 5)
+    ])
+
+    def mirror_landmarks_68(lms, im_size):
+        return PointCloud(abs(np.array([0, im_size[1]]) - lms.as_vector(
+        ).reshape(-1, 2))[mirrored_parts_68])
+
+    def mirror_image(im):
+        im = im.copy()
+        im.pixels = im.pixels[..., ::-1].copy()
+
+        for group in im.landmarks:
+            lms = im.landmarks[group]
+            if lms.points.shape[0] == 68:
+                im.landmarks[group] = mirror_landmarks_68(lms, im.shape)
+
+        return im
+
     lim = image_size - crop_size
     min_crop_inds = np.random.randint(0, lim, 2)
     max_crop_inds = min_crop_inds + crop_size
@@ -101,8 +134,10 @@ def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=
     rot_angle = 2 * angle_range * np.random.random_sample() - angle_range
 
     if flip and flip_rand:
-        rand_crop = img.crop(min_crop_inds, max_crop_inds).mirror(). \
-            rotate_ccw_about_centre(rot_angle).resize([image_size, image_size])
+        rand_crop = img.crop(min_crop_inds, max_crop_inds)
+        rand_crop = mirror_image(rand_crop)
+        rand_crop = rand_crop.rotate_ccw_about_centre(rot_angle).resize([image_size, image_size])
+
     else:
         rand_crop = img.crop(min_crop_inds, max_crop_inds). \
             rotate_ccw_about_centre(rot_angle).resize([image_size, image_size])
@@ -525,7 +560,7 @@ def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, s
 def train_val_shuffle_inds_per_epoch(valid_inds, train_inds, train_iter, batch_size, log_path, save_log=True):
     np.random.seed(0)
     num_train_images = len(train_inds)
-    num_epochs = int(np.ceil((1. * train_iter) / (1. * num_train_images / batch_size)))
+    num_epochs = int(np.ceil((1. * train_iter) / (1. * num_train_images / batch_size)))+1
     epoch_inds_shuffle = np.zeros((num_epochs, num_train_images)).astype(int)
     img_inds = np.arange(num_train_images)
     for i in range(num_epochs):
