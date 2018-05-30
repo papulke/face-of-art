@@ -41,25 +41,25 @@ def load_bb_files(bb_file_dirs):
 
 
 def load_bb_dictionary(bb_dir, mode, test_data='full'):
-    if mode is 'TRAIN':
+    if mode == 'TRAIN':
         bb_dirs = \
             ['bounding_boxes_afw.mat', 'bounding_boxes_helen_trainset.mat', 'bounding_boxes_lfpw_trainset.mat']
     else:
-        if test_data is 'common':
+        if test_data == 'common':
             bb_dirs = \
                 ['bounding_boxes_helen_testset.mat', 'bounding_boxes_lfpw_testset.mat']
-        elif test_data is 'challenging':
+        elif test_data == 'challenging':
             bb_dirs = ['bounding_boxes_ibug.mat']
-        elif test_data is 'full':
+        elif test_data == 'full':
             bb_dirs = \
                 ['bounding_boxes_ibug.mat', 'bounding_boxes_helen_testset.mat', 'bounding_boxes_lfpw_testset.mat']
-        elif test_data is 'training':
+        elif test_data == 'training':
             bb_dirs = \
                 ['bounding_boxes_afw.mat', 'bounding_boxes_helen_trainset.mat', 'bounding_boxes_lfpw_trainset.mat']
         else:
             bb_dirs=None
 
-    if mode == 'TEST' and test_data is 'test':
+    if mode == 'TEST' and test_data == 'test':
         bb_files_dict = None
     else:
         bb_dirs = [os.path.join(bb_dir, dataset) for dataset in bb_dirs]
@@ -94,6 +94,8 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
 
 
 def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=True):
+
+    # taken from MDM
     jaw_indices = np.arange(0, 17)
     lbrow_indices = np.arange(17, 22)
     rbrow_indices = np.arange(22, 27)
@@ -243,16 +245,13 @@ def load_menpo_image_list_artistic_aug(
 
 
 def reload_img_menpo_list_artistic_aug_train(
-        img_dir, train_crop_dir, img_dir_ns, mode, train_inds, debug=False, debug_size=20, image_size=256,
+        img_dir, train_crop_dir, img_dir_ns, mode, train_inds, image_size=256,
         augment_basic=True, augment_texture=False, p_texture=0, augment_geom=False, p_geom=0):
 
     img_menpo_list = load_menpo_image_list_artistic_aug(
         img_dir=img_dir, train_crop_dir=train_crop_dir, img_dir_ns=img_dir_ns, mode=mode,image_size=image_size,
         augment_basic=augment_basic, augment_texture=augment_texture, p_texture=p_texture, augment_geom=augment_geom,
         p_geom=p_geom)
-
-    if debug:
-        img_menpo_list = img_menpo_list[:debug_size]
 
     img_menpo_list_train = img_menpo_list[train_inds]
 
@@ -569,8 +568,9 @@ def train_val_shuffle_inds_per_epoch(valid_inds, train_inds, train_iter, batch_s
 
     if save_log:
         with open(os.path.join(log_path, "train_val_shuffle_inds.csv"), "wb") as f:
-            f.write(b'valid inds\n')
-            np.savetxt(f, valid_inds.reshape(1, -1), fmt='%i', delimiter=",")
+            if valid_inds is not None:
+                f.write(b'valid inds\n')
+                np.savetxt(f, valid_inds.reshape(1, -1), fmt='%i', delimiter=",")
             f.write(b'train inds\n')
             np.savetxt(f, train_inds.reshape(1, -1), fmt='%i', delimiter=",")
             f.write(b'shuffle inds\n')
