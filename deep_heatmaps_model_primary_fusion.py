@@ -38,13 +38,14 @@ class DeepHeatmapsModel(object):
         margin = 0.25  # for face crops
         bb_type = 'gt'  # gt/init
 
+        valid_data = 'full'
         valid_size = 100
         train_crop_dir = 'crop_gt_margin_0.25'
         img_dir_ns = os.path.join(img_path, train_crop_dir+'_ns')
 
         # sampling and logging parameters
         self.print_every = 10
-        self.save_every = 5000
+        self.save_every = 1000
         self.sample_every = 1000
         self.sample_grid = 9
         self.log_histograms = False
@@ -121,36 +122,46 @@ class DeepHeatmapsModel(object):
                 augment_texture=(augment_texture and artistic_start == 0), p_texture=p_texture,
                 augment_geom=(augment_geom and artistic_start == 0), p_geom=p_geom)
 
-        if self.debug:
-            self.img_menpo_list = self.img_menpo_list[:self.debug_data_size]
+            if mode == 'TRAIN':
 
-        if mode is 'TRAIN':
-            train_params = locals()
-            print_training_params_to_file(train_params)  # save init parameters
+                train_params = locals()
+                print_training_params_to_file(train_params)  # save init parameters
 
-            # train - validation split
-            self.valid_size = valid_size
-            np.random.seed(0)
-            img_inds = np.arange(len(self.img_menpo_list))
-            np.random.shuffle(img_inds)
+                self.train_inds = np.arange(len(self.img_menpo_list))
 
-            val_inds = img_inds[:self.valid_size]
-            self.train_inds = img_inds[self.valid_size:]
-            self.valid_img_menpo_list = self.img_menpo_list[val_inds]
+                if self.debug:
+                    self.train_inds = self.train_inds[:self.debug_data_size]
+                    self.img_menpo_list = self.img_menpo_list[self.train_inds]
 
-            self.valid_images_loaded, self.valid_gt_maps_loaded, self.valid_gt_maps_small_loaded,\
-            self.valid_landmarks_loaded = \
-                load_data(self.valid_img_menpo_list, np.arange(self.valid_size), image_size=self.image_size,
-                          c_dim=self.c_dim, num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                          save_landmarks=True, primary=False)
-            if self.valid_size > self.sample_grid:
-                self.valid_gt_maps_loaded = self.valid_gt_maps_loaded[:self.sample_grid]
-                self.valid_gt_maps_small_loaded = self.valid_gt_maps_small_loaded[:self.sample_grid]
+                if valid_size > 0:
+                    self.valid_size = valid_size
+                    self.valid_data = valid_data
 
-            self.img_menpo_list = self.img_menpo_list[self.train_inds]
+                    self.valid_bb_dictionary = load_bb_dictionary(self.bb_dir, 'TEST', test_data=self.valid_data)
+                    self.valid_img_menpo_list = load_menpo_image_list_artistic_aug(
+                        img_path, train_crop_dir, img_dir_ns, 'TEST', bb_dictionary=self.valid_bb_dictionary,
+                        image_size=self.image_size, margin=margin, bb_type=bb_type, test_data=self.valid_data)
 
-            self.epoch_inds_shuffle = train_val_shuffle_inds_per_epoch(
-                val_inds, self.train_inds, train_iter, batch_size, save_log_path)
+                    np.random.seed(0)
+                    self.val_inds = np.arange(len(self.valid_img_menpo_list))
+                    np.random.shuffle(self.val_inds)
+                    self.val_inds = self.val_inds[:self.valid_size]
+
+                    self.valid_img_menpo_list = self.valid_img_menpo_list[self.val_inds]
+
+                    self.valid_images_loaded, self.valid_gt_maps_loaded, self.valid_gt_maps_small_loaded,\
+                    self.valid_landmarks_loaded = \
+                        load_data(self.valid_img_menpo_list, np.arange(self.valid_size), image_size=self.image_size,
+                                  c_dim=self.c_dim, num_landmarks=self.num_landmarks, sigma=self.sigma,
+                                  scale=self.scale, save_landmarks=True, primary=False)
+                    if self.valid_size > self.sample_grid:
+                        self.valid_gt_maps_loaded = self.valid_gt_maps_loaded[:self.sample_grid]
+                        self.valid_gt_maps_small_loaded = self.valid_gt_maps_small_loaded[:self.sample_grid]
+                else:
+                    self.val_inds = None
+
+                self.epoch_inds_shuffle = train_val_shuffle_inds_per_epoch(
+                    self.val_inds, self.train_inds, train_iter, batch_size, save_log_path)
 
     def add_placeholders(self):
 
@@ -654,15 +665,16 @@ class DeepHeatmapsModel(object):
                         basic_reload = False
                         self.img_menpo_list = reload_img_menpo_list_artistic_aug_train(
                             self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
-                            debug=self.debug, debug_size=self.debug_data_size, image_size=self.image_size,
-                            augment_basic=self.augment_basic, augment_texture=self.augment_texture,
-                            p_texture=p_texture, augment_geom=self.augment_geom, p_geom=p_geom)
+                            image_size=self.image_size, augment_basic=self.augment_basic,
+                            augment_texture=(self.augment_texture and epoch >= self.artistic_start), p_texture=p_texture,
+                            augment_geom=(self.augment_geom and epoch >= self.artistic_start), p_geom=p_geom)
                         print "****** adding basic augmentation ******"
 
                     # increase artistic augmentation probability
-                    if ((epoch % self.artistic_step == 0 and epoch >= self.artistic_start) or
-                            (epoch == self.artistic_start)) and (self.augment_geom or self.augment_texture)\
+                    if ((epoch % self.artistic_step == 0 and epoch >= self.artistic_start and self.artistic_step != -1)
+                        or (epoch == self.artistic_start)) and (self.augment_geom or self.augment_texture)\
                             and artistic_reload:
+
                         artistic_reload = False
 
                         if epoch == self.artistic_start:
@@ -670,7 +682,7 @@ class DeepHeatmapsModel(object):
                             print "****** augment_geom:", self.augment_geom, "p_geom:", p_geom, "******"
                             print "****** augment_texture:", self.augment_texture, "p_texture:", p_texture, "******"
 
-                        if epoch % self.artistic_step == 0:
+                        if epoch % self.artistic_step == 0 and self.artistic_step != -1:
                             print "****** increasing artistic augmentation probability ******"
 
                             p_geom = 1. - 0.95 ** (epoch / self.artistic_step)
@@ -681,8 +693,7 @@ class DeepHeatmapsModel(object):
 
                         self.img_menpo_list = reload_img_menpo_list_artistic_aug_train(
                             self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
-                            debug=self.debug, debug_size=self.debug_data_size, image_size=self.image_size,
-                            augment_basic=(self.augment_basic and epoch >= self.basic_start),
+                            image_size=self.image_size, augment_basic=(self.augment_basic and epoch >= self.basic_start),
                             augment_texture=self.augment_texture, p_texture=p_texture,
                             augment_geom=self.augment_geom, p_geom=p_geom)
 
