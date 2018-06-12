@@ -59,7 +59,7 @@ def load_bb_dictionary(bb_dir, mode, test_data='full'):
         else:
             bb_dirs=None
 
-    if mode == 'TEST' and test_data == 'test':
+    if mode == 'TEST' and test_data not in ['full', 'challenging', 'common', 'training']:
         bb_files_dict = None
     else:
         bb_dirs = [os.path.join(bb_dir, dataset) for dataset in bb_dirs]
@@ -224,23 +224,24 @@ def load_menpo_image_list_artistic_aug(
 
     if mode is 'TRAIN':
         img_set_dir = os.path.join(img_dir, train_crop_dir)
+        out_image_list = mio.import_images(img_set_dir, verbose=True)
 
-    else:
-        img_set_dir = os.path.join(img_dir, test_data + '_set')
-
-    out_image_list = mio.import_images(img_set_dir, verbose=True)
-
-    if bb_type is 'gt' and mode == 'TEST':
-        out_image_list = out_image_list.map(crop_to_face_image_gt)
-    elif bb_type is 'init' and mode == 'TEST':
-        out_image_list = out_image_list.map(crop_to_face_image_init)
-    else:
         if augment_texture:
             out_image_list = out_image_list.map(augment_menpo_img_ns_rand)
         if augment_geom:
             out_image_list = out_image_list.map(augment_menpo_img_geom_rand)
         if augment_basic:
             out_image_list = out_image_list.map(augment_face_image)
+
+    else:
+        img_set_dir = os.path.join(img_dir, test_data + '_set')
+        out_image_list = mio.import_images(img_set_dir, verbose=True)
+        if test_data in ['full', 'challenging', 'common', 'training', 'test']:
+            if bb_type is 'gt':
+                out_image_list = out_image_list.map(crop_to_face_image_gt)
+            elif bb_type is 'init':
+                out_image_list = out_image_list.map(crop_to_face_image_init)
+
     return out_image_list
 
 
@@ -481,7 +482,7 @@ def load_art_data(img_list, batch_inds, image_size=256, c_dim=3, scale='255'):
 
 
 def merge_images_landmarks_maps_gt(images, maps, maps_gt, image_size=256, num_landmarks=68, num_samples=9, scale='255',
-                                   circle_size=2, test_data='full'):
+                                   circle_size=2, test_data='full', fast=False):
     images = images[:num_samples]
     if maps.shape[1] is not image_size:
         images = zoom(images, (1, 0.25, 0.25, 1))
@@ -494,25 +495,35 @@ def merge_images_landmarks_maps_gt(images, maps, maps_gt, image_size=256, num_la
     row = int(np.sqrt(num_samples))
     merged = np.zeros([row * image_size, row * image_size * 3, 3])
 
+    if fast:
+        maps_gt_images = np.amax(maps_gt, 3)
+        maps_images = np.amax(maps, 3)
+
     for idx, img in enumerate(images):
         i = idx // row
         j = idx % row
 
-        img_lamdmarks = heat_maps_to_landmarks(maps[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
+        img_landmarks = heat_maps_to_landmarks(maps[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
 
-        map_image = heat_maps_to_image(maps[idx, :, :, :], img_lamdmarks, image_size=image_size,
-                                       num_landmarks=num_landmarks)
+        if fast:
+            map_image = maps_images[idx]
+        else:
+            map_image = heat_maps_to_image(maps[idx, :, :, :], img_landmarks, image_size=image_size,
+                                           num_landmarks=num_landmarks)
         rgba_map_image = cmap(map_image)
         map_image = np.delete(rgba_map_image, 3, 2) * 255
 
-        if test_data is 'art':
+        if test_data not in ['full', 'challenging', 'common', 'training']:
             map_gt_image = map_image.copy()
         else:
-            map_gt_image = heat_maps_to_image(maps_gt[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
+            if fast:
+                map_gt_image = maps_gt_images[idx]
+            else:
+                map_gt_image = heat_maps_to_image(maps_gt[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks)
             rgba_map_gt_image = cmap(map_gt_image)
             map_gt_image = np.delete(rgba_map_gt_image, 3, 2) * 255
 
-        img = create_img_with_landmarks(img, img_lamdmarks, image_size, num_landmarks, scale=scale,
+        img = create_img_with_landmarks(img, img_landmarks, image_size, num_landmarks, scale=scale,
                                         circle_size=circle_size)
 
         merged[i * image_size:(i + 1) * image_size, (j * 3) * image_size:(j * 3 + 1) * image_size, :] = img
@@ -541,7 +552,7 @@ def map_comapre_channels(images,maps1, maps2, image_size=64, num_landmarks=68, s
         i = idx // row
         j = idx % row
         channel_map = map_to_rgb(normalize_map(map1[:, :, idx]))
-        if test_data is 'art':
+        if test_data not in ['full', 'challenging', 'common', 'training']:
             channel_map2=channel_map.copy()
         else:
             channel_map2 = map_to_rgb(normalize_map(map2[:, :, idx]))
