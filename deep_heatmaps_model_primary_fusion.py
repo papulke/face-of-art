@@ -3,10 +3,12 @@ import scipy.misc
 from glob import glob
 import os
 import numpy as np
-from image_utils import *
 from ops import *
 import tensorflow as tf
 from tensorflow import contrib
+from menpo_functions import *
+from logging_functions import *
+from data_loading_functions import *
 
 
 class DeepHeatmapsModel(object):
@@ -31,6 +33,7 @@ class DeepHeatmapsModel(object):
         weight_initializer = 'xavier'  # random_normal or xavier
         weight_initializer_std = 0.01  # std for random_normal weight init
         bias_initializer = 0.0
+        adam_optimizer = False
 
         # images/maps loading parameters
         sigma = 6  # sigma for heatmap generation
@@ -38,8 +41,13 @@ class DeepHeatmapsModel(object):
         margin = 0.25  # for face crops
         bb_type = 'gt'  # gt/init
 
+        # only one of the options below can be True!
+        approx_maps_gpu = False  # create heat-maps using conv with gaussian filter. use only with GPU support! (faster yet less accurate)
+        approx_maps_cpu = True  # create heat-maps by inserting gaussian filter around landmark locations (faster yet less accurate)
+        win_mult = 4.  # gaussian filter size for cpu/gpu approximation: 2 * sigma * win_mult + 1
+
         valid_data = 'full'
-        valid_size = 100
+        valid_size = 0
         train_crop_dir = 'crop_gt_margin_'+str(margin)  # directory of train images cropped to bb (+margin)
         img_dir_ns = os.path.join(img_path, train_crop_dir+'_ns')  # dir of train imgs cropped to bb + style transfer
 
@@ -51,15 +59,20 @@ class DeepHeatmapsModel(object):
         self.log_histograms = False  # save weight + gradient histogram to log
         self.sample_to_log = True  # sample images to log instead of disk
         self.save_valid_images = True  # sample heat maps of validation images
-        self.log_valid_every = 2  # log validation loss (in epochs)
+        self.log_valid_every = 5  # log validation loss (in epochs)
         self.log_artistic_augmentation_probs = False
 
         self.debug = False
         self.debug_data_size = 20
+
         self.compute_nme = True  # compute normalized mean error
 
         # for fine-tuning, choose reset_training_op==True. when resuming training, reset_training_op==False
         self.reset_training_op = False
+
+        self.allocate_once = True  # create batch images/landmarks/maps zero arrays only once
+
+        self.fast_img_gen = True
 
         self.config = tf.ConfigProto()
         self.config.gpu_options.allow_growth = True
@@ -93,9 +106,13 @@ class DeepHeatmapsModel(object):
         self.weight_initializer = weight_initializer  # random_normal or xavier
         self.weight_initializer_std = weight_initializer_std
         self.bias_initializer = bias_initializer
+        self.adam_optimizer = adam_optimizer
 
         self.sigma = sigma  # sigma for heatmap generation
         self.scale = scale  # scale for image normalization '255' / '1' / '0'
+        self.win_mult = win_mult  # gaussian filter size for cpu/gpu approximation: 2 * sigma * win_mult + 1
+        self.approx_maps_gpu = approx_maps_gpu  # create heat-maps on gpu (as conv with gaussian). faster yet less accurate
+        self.approx_maps_cpu = approx_maps_cpu  # create heat-maps by inserting gaussian filter around landmark locations
 
         self.test_data = test_data  # if mode is TEST, this choose the set to use full/common/challenging/test/art
         self.train_crop_dir = train_crop_dir
@@ -115,7 +132,7 @@ class DeepHeatmapsModel(object):
         # load image, bb and landmark data using menpo
         self.bb_dir = os.path.join(img_path, 'Bounding_Boxes')
         self.bb_dictionary = load_bb_dictionary(self.bb_dir, mode, test_data=self.test_data)
-        self.img_menpo_list = load_menpo_image_list_artistic_aug(
+        self.img_menpo_list = load_menpo_image_list(
             img_path, train_crop_dir, img_dir_ns, mode, bb_dictionary=self.bb_dictionary,
             image_size=self.image_size,
             margin=margin, bb_type=bb_type, test_data=self.test_data,
@@ -137,7 +154,7 @@ class DeepHeatmapsModel(object):
                 if valid_size > 0:
 
                     self.valid_bb_dictionary = load_bb_dictionary(self.bb_dir, 'TEST', test_data=self.valid_data)
-                    self.valid_img_menpo_list = load_menpo_image_list_artistic_aug(
+                    self.valid_img_menpo_list = load_menpo_image_list(
                         img_path, train_crop_dir, img_dir_ns, 'TEST', bb_dictionary=self.valid_bb_dictionary,
                         image_size=self.image_size, margin=margin, bb_type=bb_type, test_data=self.valid_data)
 
@@ -148,11 +165,24 @@ class DeepHeatmapsModel(object):
 
                     self.valid_img_menpo_list = self.valid_img_menpo_list[self.val_inds]
 
-                    self.valid_images_loaded, self.valid_gt_maps_loaded, self.valid_gt_maps_small_loaded,\
-                    self.valid_landmarks_loaded = \
-                        load_data(self.valid_img_menpo_list, np.arange(self.valid_size), image_size=self.image_size,
-                                  c_dim=self.c_dim, num_landmarks=self.num_landmarks, sigma=self.sigma,
-                                  scale=self.scale, save_landmarks=True, primary=False)
+                    if self.approx_maps_cpu:
+                        self.valid_images_loaded, self.valid_gt_maps_small_loaded, self.valid_gt_maps_loaded,\
+                        self.valid_landmarks_loaded = \
+                            load_images_landmarks_approx_maps(
+                                self.valid_img_menpo_list, np.arange(self.valid_size), primary=False,
+                                image_size=self.image_size, num_landmarks=self.num_landmarks, c_dim=self.c_dim,
+                                scale=self.scale, win_mult=self.win_mult, sigma=self.sigma, save_landmarks=True)
+                    else:
+                        self.valid_images_loaded, self.valid_gt_maps_small_loaded, self.valid_gt_maps_loaded,\
+                        self.valid_landmarks_loaded = \
+                            load_images_landmarks_maps(
+                                self.valid_img_menpo_list, np.arange(self.valid_size), primary=False,
+                                image_size=self.image_size, c_dim=self.c_dim, num_landmarks=self.num_landmarks,
+                                scale=self.scale, sigma=self.sigma, save_landmarks=True)
+
+                    if self.allocate_once:
+                        self.valid_landmarks_pred = np.zeros([self.valid_size, self.num_landmarks, 2]).astype('float32')
+
                     if self.valid_size > self.sample_grid:
                         self.valid_gt_maps_loaded = self.valid_gt_maps_loaded[:self.sample_grid]
                         self.valid_gt_maps_small_loaded = self.valid_gt_maps_small_loaded[:self.sample_grid]
@@ -194,6 +224,9 @@ class DeepHeatmapsModel(object):
 
             self.p_texture_log = tf.placeholder(tf.float32, [])
             self.p_geom_log = tf.placeholder(tf.float32, [])
+
+            self.sparse_hm_small = tf.placeholder(tf.float32, [None, self.image_size / 4, self.image_size / 4, 1])
+            self.sparse_hm = tf.placeholder(tf.float32, [None, self.image_size, self.image_size, 1])
 
             if self.sample_to_log:
                 row = int(np.sqrt(self.sample_grid))
@@ -316,6 +349,38 @@ class DeepHeatmapsModel(object):
     def build_model(self):
             self.pred_hm_p, self.pred_hm_f = self.heatmaps_network(self.images,name='heatmaps_prediction')
 
+    def build_hm_generator(self):
+
+        # generate heat-maps using:
+        # a sparse base (matrix of zeros with 1's in landmark locations) and convolving with a gaussian filter
+        print "*** using convolution to create heat-maps. use this option only with GPU support ***"
+
+        # small map generator
+        # create gaussian filter
+        win_small = int(self.win_mult * self.sigma / 4)
+        x_small, y_small = np.mgrid[0:2*win_small+1, 0:2*win_small+1]
+        gauss_small = (8./3) * (1.*self.sigma/4) * \
+                      gaussian(x_small, y_small, win_small, win_small, sigma=1. * self.sigma / 4)
+        gauss_small = tf.constant(gauss_small, tf.float32)
+        gauss_small = tf.reshape(gauss_small, [2 * win_small + 1, 2 * win_small + 1, 1, 1])
+
+        # convolve sparse map with gaussian
+        self.filt_hm_small = tf.nn.conv2d(self.sparse_hm_small, gauss_small, strides=[1, 1, 1, 1], padding='SAME')
+        self.filt_hm_small = tf.transpose(
+            tf.concat(tf.split(self.filt_hm_small, self.batch_size, axis=0), 3), [3, 1, 2, 0])
+
+        # large map generator
+        # create gaussian filter
+        win_large = int(self.win_mult * self.sigma)
+        x_large, y_large = np.mgrid[0:2*win_large+1, 0:2*win_large+1]
+        gauss_large = (8. / 3) * self.sigma * gaussian(x_large, y_large, win_large, win_large, sigma=self.sigma)
+        gauss_large = tf.constant(gauss_large, tf.float32)
+        gauss_large = tf.reshape(gauss_large, [2*win_large+1, 2*win_large+1, 1, 1])
+
+        # convolve sparse map with gaussian
+        self.filt_hm = tf.nn.conv2d(self.sparse_hm, gauss_large, strides=[1, 1, 1, 1], padding='SAME')
+        self.filt_hm = tf.transpose(tf.concat(tf.split(self.filt_hm, self.batch_size, axis=0), 3), [3, 1, 2, 0])
+
     def create_loss_ops(self):
 
         def l2_loss_norm_eyes(pred_landmarks, real_landmarks, normalize=True, name='NME_loss'):
@@ -373,15 +438,16 @@ class DeepHeatmapsModel(object):
         img_inds = np.arange(len(image_paths))
 
         for j in range(num_batches):
-            batch_inds = img_inds[j * self.batch_size:(j + 1) * self.batch_size]
+            batch_inds = img_inds[j * batch_size:(j + 1) * batch_size]
 
-            batch_images, _, _, batch_lms = \
-                load_data(self.img_menpo_list, batch_inds, image_size=self.image_size, c_dim=self.c_dim,
-                          num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                          save_landmarks=self.compute_nme, primary=False)
+            batch_images, _, _,batch_lms = \
+                load_images_landmarks_maps(
+                    self.img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
+                    c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
+                    save_landmarks=self.compute_nme)
             batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
             batch_pred_landmarks = batch_heat_maps_to_landmarks(
-                batch_maps_pred, self.batch_size, image_size=self.image_size, num_landmarks=self.num_landmarks)
+                batch_maps_pred, batch_size=batch_size, image_size=self.image_size, num_landmarks=self.num_landmarks)
 
             if j == 0:
                 all_pred_landmarks = batch_pred_landmarks.copy()
@@ -394,14 +460,16 @@ class DeepHeatmapsModel(object):
 
         if reminder > 0:
             reminder_inds = img_inds[-reminder:]
+
             batch_images, _, _, batch_lms = \
-                load_data(self.img_menpo_list, reminder_inds, image_size=self.image_size, c_dim=self.c_dim,
-                          num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                          save_landmarks=self.compute_nme, primary=False)
+                load_images_landmarks_maps(
+                    self.img_menpo_list, reminder_inds, primary=False, image_size=self.image_size,
+                    c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
+                    save_landmarks=self.compute_nme)
 
             batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
             batch_pred_landmarks = batch_heat_maps_to_landmarks(
-                batch_maps_pred, reminder, image_size=self.image_size, num_landmarks=self.num_landmarks)
+                batch_maps_pred, batch_size=reminder, image_size=self.image_size, num_landmarks=self.num_landmarks)
 
             all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
             all_gt_landmarks = np.concatenate((all_gt_landmarks, batch_lms), 0)
@@ -420,26 +488,38 @@ class DeepHeatmapsModel(object):
 
         for j in range(num_batches):
 
-            batch_images = images[j * self.batch_size:(j + 1) * self.batch_size,:,:,:]
+            batch_images = images[j * batch_size:(j + 1) * batch_size,:,:,:]
             batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
-            batch_pred_landmarks = batch_heat_maps_to_landmarks(
-                batch_maps_pred, self.batch_size, image_size=self.image_size, num_landmarks=self.num_landmarks)
-
-            if j == 0:
-                all_pred_landmarks = batch_pred_landmarks.copy()
+            if self.allocate_once:
+                batch_heat_maps_to_landmarks_alloc_once(
+                    batch_maps=batch_maps_pred, batch_landmarks=self.valid_landmarks_pred[j * batch_size:(j + 1) * batch_size, :, :],
+                    batch_size=batch_size,image_size=self.image_size,num_landmarks=self.num_landmarks)
             else:
-                all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
+                batch_pred_landmarks = batch_heat_maps_to_landmarks(
+                    batch_maps_pred, batch_size=batch_size, image_size=self.image_size, num_landmarks=self.num_landmarks)
+                if j == 0:
+                    all_pred_landmarks = batch_pred_landmarks.copy()
+                else:
+                    all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
 
         reminder = num_images-num_batches*batch_size
         if reminder > 0:
             batch_images = images[-reminder:, :, :, :]
             batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
-            batch_pred_landmarks = batch_heat_maps_to_landmarks(
-                batch_maps_pred, reminder, image_size=self.image_size, num_landmarks=self.num_landmarks)
 
-            all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
+            if self.allocate_once:
+                batch_heat_maps_to_landmarks_alloc_once(
+                    batch_maps=batch_maps_pred,
+                    batch_landmarks=self.valid_landmarks_pred[-reminder:, :, :],
+                    batch_size=reminder, image_size=self.image_size, num_landmarks=self.num_landmarks)
+            else:
+                batch_pred_landmarks = batch_heat_maps_to_landmarks(
+                    batch_maps_pred, batch_size=reminder, image_size=self.image_size, num_landmarks=self.num_landmarks)
 
-        return all_pred_landmarks
+                all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
+
+        if not self.allocate_once:
+            return all_pred_landmarks
 
     def create_summary_ops(self):
 
@@ -481,7 +561,7 @@ class DeepHeatmapsModel(object):
             self.img_summary = tf.summary.merge(
                 [img_map_summary, img_map_summary_small,map_channels_summary,map_channels_summary_small])
 
-            if self.valid_size > self.sample_grid:
+            if self.valid_size >= self.sample_grid:
                 img_map_summary_valid_small = tf.summary.image('compare_map_to_gt_small_valid', self.log_image_map_small)
                 map_channels_summary_valid_small = tf.summary.image('compare_map_channels_to_gt_small_valid',
                                                               self.log_map_channels_small)
@@ -498,6 +578,9 @@ class DeepHeatmapsModel(object):
         # build model
         self.build_model()
         self.create_loss_ops()
+
+        if self.debug:
+            self.img_menpo_list = self.img_menpo_list[:self.debug_data_size]
 
         num_images = len(self.img_menpo_list)
         img_inds = np.arange(num_images)
@@ -518,8 +601,8 @@ class DeepHeatmapsModel(object):
                 batch_inds = img_inds[i * self.sample_grid:(i + 1) * self.sample_grid]
 
                 if self.test_data not in ['full', 'challenging', 'common', 'training', 'test']:
-                    batch_images = load_art_data(self.img_menpo_list, batch_inds, image_size=self.image_size,
-                                                 c_dim=self.c_dim, scale=self.scale)
+                    batch_images = load_images(self.img_menpo_list, batch_inds, image_size=self.image_size,
+                                               c_dim=self.c_dim, scale=self.scale)
 
                     batch_maps_small_pred, batch_maps_pred = sess.run(
                         [self.pred_hm_p, self.pred_hm_f], {self.images: batch_images})
@@ -528,10 +611,12 @@ class DeepHeatmapsModel(object):
                     batch_maps_small_gt = batch_maps_small_pred.copy()
 
                 else:
-                    batch_images, batch_maps_gt, batch_maps_small_gt, _ = \
-                        load_data(self.img_menpo_list, batch_inds, image_size=self.image_size, c_dim=self.c_dim,
-                                  num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                                  save_landmarks=False, primary=False)
+                    # TODO: add option for approx cpu/gpu + allocate once
+                    batch_images, batch_maps_small_gt, batch_maps_gt, _ = \
+                        load_images_landmarks_maps(
+                            self.img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
+                            c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
+                            save_landmarks=False)
 
                     batch_maps_small_pred, batch_maps_pred = sess.run(
                         [self.pred_hm_p,self.pred_hm_f], {self.images: batch_images})
@@ -555,7 +640,7 @@ class DeepHeatmapsModel(object):
                 merged_img = merge_images_landmarks_maps_gt(
                     batch_images.copy(), batch_maps_pred, batch_maps_gt, image_size=self.image_size,
                     num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale, circle_size=2,
-                    test_data=self.test_data)
+                    test_data=self.test_data, fast=self.fast_img_gen)
 
                 map_per_channel = map_comapre_channels(
                     batch_images.copy(), batch_maps_pred, batch_maps_gt, image_size=self.image_size,
@@ -564,7 +649,7 @@ class DeepHeatmapsModel(object):
                 merged_img_small = merge_images_landmarks_maps_gt(
                     batch_images.copy(), batch_maps_small_pred, batch_maps_small_gt, image_size=self.image_size,
                     num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale, circle_size=0,
-                    test_data=self.test_data)
+                    test_data=self.test_data, fast=self.fast_img_gen)
 
                 map_per_channel_small = map_comapre_channels(
                     batch_images.copy(), batch_maps_small_pred, batch_maps_small_gt, image_size=self.image_size / 4,
@@ -601,9 +686,15 @@ class DeepHeatmapsModel(object):
             # create optimizer and training op
             global_step = tf.Variable(0, trainable=False)
             lr = tf.train.exponential_decay(self.learning_rate,global_step, self.step, self.gamma, staircase=True)
-            optimizer = tf.train.MomentumOptimizer(lr,self.momentum)
+            if self.adam_optimizer:
+                optimizer = tf.train.AdamOptimizer(lr)
+            else:
+                optimizer = tf.train.MomentumOptimizer(lr, self.momentum)
 
             train_op = optimizer.minimize(self.total_loss,global_step=global_step)
+
+            if self.approx_maps_gpu:  # create heat-maps using tf convolution. use only with GPU support!
+                self.build_hm_generator()
 
             with tf.Session(config=self.config) as sess:
 
@@ -651,6 +742,28 @@ class DeepHeatmapsModel(object):
                 basic_reload = True
                 log_valid = True
 
+                if self.allocate_once:
+                    batch_images = np.zeros([self.batch_size, self.image_size, self.image_size, self.c_dim]).astype(
+                        'float32')
+                    batch_lms = np.zeros([self.batch_size, self.num_landmarks, 2]).astype('float32')
+                    batch_lms_pred = np.zeros([self.batch_size, self.num_landmarks, 2]).astype('float32')
+
+                    if self.approx_maps_gpu:
+                        batch_lms_small = np.zeros([self.batch_size, self.num_landmarks, 2]).astype('float32')
+                        batch_hm_base_small = np.zeros((self.batch_size * self.num_landmarks,
+                                                        self.image_size / 4, self.image_size / 4, 1)).astype('float32')
+                        batch_hm_base = np.zeros(
+                            (self.batch_size * self.num_landmarks, self.image_size, self.image_size, 1)).astype('float32')
+                    else:
+                        batch_maps_small = np.zeros((self.batch_size, self.image_size / 4,
+                                                     self.image_size / 4, self.num_landmarks)).astype('float32')
+                        batch_maps = np.zeros((self.batch_size, self.image_size, self.image_size,
+                                               self.num_landmarks)).astype('float32')
+
+                if self.approx_maps_cpu:
+                    gaussian_filt_large = create_gaussian_filter(sigma=self.sigma, win_mult=self.win_mult)
+                    gaussian_filt_small = create_gaussian_filter(sigma=1.*self.sigma/4, win_mult=self.win_mult)
+
                 for step in range(resume_step, self.train_iter):
 
                     j = step % batches_in_epoch  # j==0 if we finished an epoch
@@ -664,7 +777,7 @@ class DeepHeatmapsModel(object):
                     # add basic augmentation (if basic_start > 0 and augment_basic is True)
                     if basic_reload and (epoch >= self.basic_start) and self.basic_start > 0 and self.augment_basic:
                         basic_reload = False
-                        self.img_menpo_list = reload_img_menpo_list_artistic_aug_train(
+                        self.img_menpo_list = reload_menpo_image_list(
                             self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
                             image_size=self.image_size, augment_basic=self.augment_basic,
                             augment_texture=(self.augment_texture and epoch >= self.artistic_start), p_texture=p_texture,
@@ -692,19 +805,63 @@ class DeepHeatmapsModel(object):
                             print "****** augment_geom:", self.augment_geom, "p_geom:", p_geom, "******"
                             print "****** augment_texture:", self.augment_texture, "p_texture:", p_texture, "******"
 
-                        self.img_menpo_list = reload_img_menpo_list_artistic_aug_train(
+                        self.img_menpo_list = reload_menpo_image_list(
                             self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
                             image_size=self.image_size, augment_basic=(self.augment_basic and epoch >= self.basic_start),
                             augment_texture=self.augment_texture, p_texture=p_texture,
                             augment_geom=self.augment_geom, p_geom=p_geom)
 
-                    # get batch images
+                    # get batch images, gt maps and landmarks
                     batch_inds = img_inds[j * self.batch_size:(j + 1) * self.batch_size]
 
-                    batch_images, batch_maps, batch_maps_small, batch_lms =\
-                        load_data(self.img_menpo_list, batch_inds, image_size=self.image_size, c_dim=self.c_dim,
-                                  num_landmarks=self.num_landmarks, sigma=self.sigma, scale=self.scale,
-                                  save_landmarks=self.compute_nme, primary=False)
+                    if self.approx_maps_gpu:
+                        if self.allocate_once:
+                            load_images_landmarks_alloc_once(
+                                self.img_menpo_list, batch_inds, images=batch_images, landmarks_small=batch_lms_small,
+                                landmarks=batch_lms, primary=False, image_size=self.image_size, scale=self.scale)
+
+                            create_heat_maps_base_alloc_once(
+                                landmarks_small=batch_lms_small.astype(int), landmarks=batch_lms.astype(int),
+                                hm_small=batch_hm_base_small, hm_large=batch_hm_base, primary=False,
+                                num_images=self.batch_size, num_landmarks=self.num_landmarks)
+                        else:
+                            batch_images, batch_lms_small, batch_lms = load_images_landmarks(
+                                self.img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
+                                c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale)
+
+                            batch_hm_base_small, batch_hm_base = create_heat_maps_base(
+                                landmarks_small=batch_lms_small.astype(int), landmarks=batch_lms.astype(int),
+                                primary=False, num_images=self.batch_size, image_size=self.image_size,
+                                num_landmarks=self.num_landmarks)
+
+                        batch_maps, batch_maps_small = sess.run([self.filt_hm, self.filt_hm_small],{
+                            self.sparse_hm: batch_hm_base, self.sparse_hm_small: batch_hm_base_small})
+                    elif self.approx_maps_cpu:
+                        if self.allocate_once:
+                            load_images_landmarks_approx_maps_alloc_once(
+                                self.img_menpo_list, batch_inds, images=batch_images, maps_small=batch_maps_small,
+                                maps=batch_maps, landmarks=batch_lms, primary=False, image_size=self.image_size,
+                                num_landmarks=self.num_landmarks, scale=self.scale, gauss_filt_large=gaussian_filt_large,
+                                gauss_filt_small=gaussian_filt_small, win_mult=self.win_mult, sigma=self.sigma,
+                                save_landmarks=self.compute_nme)
+                        else:
+                            batch_images, batch_maps_small, batch_maps, batch_lms = load_images_landmarks_approx_maps(
+                                self.img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
+                                num_landmarks=self.num_landmarks, c_dim=self.c_dim, scale=self.scale,
+                                gauss_filt_large=gaussian_filt_large,gauss_filt_small=gaussian_filt_small,
+                                win_mult=self.win_mult, sigma=self.sigma, save_landmarks=self.compute_nme)
+                    else:
+                        if self.allocate_once:
+                            load_images_landmarks_maps_alloc_once(
+                                self.img_menpo_list, batch_inds, images=batch_images, maps_small=batch_maps_small,
+                                maps=batch_maps, landmarks=batch_lms, primary=False, image_size=self.image_size,
+                                num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
+                                save_landmarks=self.compute_nme)
+                        else:
+                            batch_images, batch_maps_small, batch_maps, batch_lms = load_images_landmarks_maps(
+                                self.img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
+                                c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
+                                save_landmarks=self.compute_nme)
 
                     feed_dict_train = {self.images: batch_images, self.heatmaps: batch_maps,
                                        self.heatmaps_small: batch_maps_small}
@@ -727,14 +884,20 @@ class DeepHeatmapsModel(object):
                         if self.compute_nme:
                             batch_maps_pred = sess.run(self.pred_hm_f, {self.images: batch_images})
 
-                            pred_lms = batch_heat_maps_to_landmarks(
-                                batch_maps_pred, self.batch_size, image_size=self.image_size,
-                                num_landmarks=self.num_landmarks)
+                            if self.allocate_once:
+                                batch_heat_maps_to_landmarks_alloc_once(
+                                    batch_maps=batch_maps_pred,batch_landmarks=batch_lms_pred,
+                                    batch_size=self.batch_size, image_size=self.image_size,
+                                    num_landmarks=self.num_landmarks)
+                            else:
+                                batch_lms_pred = batch_heat_maps_to_landmarks(
+                                    batch_maps_pred, self.batch_size, image_size=self.image_size,
+                                    num_landmarks=self.num_landmarks)
 
                             train_feed_dict_log = {
                                 self.images: batch_images, self.heatmaps: batch_maps,
                                 self.heatmaps_small: batch_maps_small, self.train_lms: batch_lms,
-                                self.train_pred_lms: pred_lms}
+                                self.train_pred_lms: batch_lms_pred}
                             if self.log_artistic_augmentation_probs and (self.augment_geom or self.augment_texture):
                                 train_feed_dict_log.update(art_augment_prob_dict)
 
@@ -747,7 +910,6 @@ class DeepHeatmapsModel(object):
                                 'epoch: [%d] step: [%d/%d] primary loss: [%.6f] fusion loss: [%.6f]'
                                 ' total loss: [%.6f] NME: [%.6f]' % (
                                     epoch, step + 1, self.train_iter, l_p, l_f, l_t, l_nme))
-
                         else:
                             train_feed_dict_log = {self.images: batch_images, self.heatmaps: batch_maps,
                                                    self.heatmaps_small: batch_maps_small}
@@ -767,11 +929,16 @@ class DeepHeatmapsModel(object):
                                 and self.compute_nme:
                             log_valid = False
 
-                            valid_pred_lms = self.predict_landmarks_in_batches_loaded(self.valid_images_loaded, sess)
-
-                            valid_feed_dict_log = {
-                                self.valid_lms: self.valid_landmarks_loaded,
-                                self.valid_pred_lms: valid_pred_lms}
+                            if self.allocate_once:
+                                self.predict_landmarks_in_batches_loaded(self.valid_images_loaded, sess)
+                                valid_feed_dict_log = {
+                                    self.valid_lms: self.valid_landmarks_loaded,
+                                    self.valid_pred_lms: self.valid_landmarks_pred}
+                            else:
+                                valid_pred_lms = self.predict_landmarks_in_batches_loaded(self.valid_images_loaded, sess)
+                                valid_feed_dict_log = {
+                                    self.valid_lms: self.valid_landmarks_loaded,
+                                    self.valid_pred_lms: valid_pred_lms}
 
                             v_summary, l_v_nme = sess.run([self.valid_summary, self.valid_nme_loss],
                                                           valid_feed_dict_log)
@@ -785,17 +952,18 @@ class DeepHeatmapsModel(object):
                         saver.save(sess, os.path.join(self.save_model_path, 'deep_heatmaps'), global_step=step + 1)
                         print ('model/deep-heatmaps-%d saved' % (step + 1))
 
-                    # save images
+                    # save images. TODO: add option to allocate once
                     if step == resume_step or (step + 1) % self.sample_every == 0:
 
                             batch_maps_small_pred = sess.run(self.pred_hm_p, {self.images: batch_images})
                             if not self.compute_nme:
                                 batch_maps_pred = sess.run(self.pred_hm_f,  {self.images: batch_images})
+                                batch_lms_pred = None
 
                             merged_img = merge_images_landmarks_maps_gt(
-                                batch_images.copy(), batch_maps_pred, batch_maps, image_size=self.image_size,
-                                num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale,
-                                circle_size=2)
+                                batch_images.copy(), batch_maps_pred, batch_maps, landmarks=batch_lms_pred,
+                                image_size=self.image_size, num_landmarks=self.num_landmarks, num_samples=self.sample_grid,
+                                scale=self.scale, circle_size=2, fast=self.fast_img_gen)
 
                             map_per_channel = map_comapre_channels(
                                 batch_images.copy(), batch_maps_pred, batch_maps, image_size=self.image_size,
@@ -805,10 +973,10 @@ class DeepHeatmapsModel(object):
                                 batch_images.copy(), batch_maps_small_pred, batch_maps_small,
                                 image_size=self.image_size,
                                 num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale,
-                                circle_size=0)
+                                circle_size=0, fast=self.fast_img_gen)
 
                             map_per_channel_small = map_comapre_channels(
-                                batch_images.copy(), batch_maps_small_pred, batch_maps_small, image_size=self.image_size / 4,
+                                batch_images.copy(), batch_maps_small_pred, batch_maps_small, image_size=self.image_size/4,
                                 num_landmarks=self.num_landmarks, scale=self.scale)
 
                             if self.sample_to_log:
@@ -820,7 +988,7 @@ class DeepHeatmapsModel(object):
 
                                 summary_writer.add_summary(summary_img, step)
 
-                                if (self.valid_size > self.sample_grid) and self.save_valid_images:
+                                if (self.valid_size >= self.sample_grid) and self.save_valid_images:
 
                                     batch_maps_small_pred_val,batch_maps_pred_val =\
                                         sess.run([self.pred_hm_p,self.pred_hm_f],
@@ -830,7 +998,7 @@ class DeepHeatmapsModel(object):
                                         self.valid_images_loaded[:self.sample_grid].copy(), batch_maps_small_pred_val,
                                         self.valid_gt_maps_small_loaded, image_size=self.image_size,
                                         num_landmarks=self.num_landmarks, num_samples=self.sample_grid,
-                                        scale=self.scale, circle_size=0)
+                                        scale=self.scale, circle_size=0, fast=self.fast_img_gen)
 
                                     map_per_channel_small = map_comapre_channels(
                                         self.valid_images_loaded[:self.sample_grid].copy(), batch_maps_small_pred_val,
@@ -841,7 +1009,7 @@ class DeepHeatmapsModel(object):
                                         self.valid_images_loaded[:self.sample_grid].copy(), batch_maps_pred_val,
                                         self.valid_gt_maps_loaded, image_size=self.image_size,
                                         num_landmarks=self.num_landmarks, num_samples=self.sample_grid,
-                                        scale=self.scale, circle_size=2)
+                                        scale=self.scale, circle_size=2, fast=self.fast_img_gen)
 
                                     map_per_channel = map_comapre_channels(
                                         self.valid_images_loaded[:self.sample_grid].copy(), batch_maps_pred,
