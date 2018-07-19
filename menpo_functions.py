@@ -88,7 +88,7 @@ def center_margin_bb(bb, img_bounds, margin=0.25):
     return bb_new
 
 
-def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size=256):
+def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size=256, normalize=True):
     """crop face image using bounding box dictionary"""
 
     name = img.path.name
@@ -120,6 +120,9 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
         face_crop.pixels = np.pad(face_crop.pixels, ((0, 0), (0, 0), (0, diff)), 'reflect')
 
     face_crop = face_crop.resize([image_size, image_size])
+
+    if normalize:
+        face_crop.pixels = face_crop.rescale_pixels(0., 1.).pixels
 
     return face_crop
 
@@ -220,7 +223,7 @@ def load_menpo_image_list(
     if mode is 'TRAIN':
         if train_crop_dir is None:
             img_set_dir = os.path.join(img_dir, 'training_set')
-            out_image_list = mio.import_images(img_set_dir, verbose=True)
+            out_image_list = mio.import_images(img_set_dir, verbose=True, normalize=False)
             if bb_type is 'gt':
                 out_image_list = out_image_list.map(crop_to_face_image_gt)
             elif bb_type is 'init':
@@ -238,12 +241,14 @@ def load_menpo_image_list(
 
     else:
         img_set_dir = os.path.join(img_dir, test_data + '_set')
-        out_image_list = mio.import_images(img_set_dir, verbose=True)
         if test_data in ['full', 'challenging', 'common', 'training', 'test']:
+            out_image_list = mio.import_images(img_set_dir, verbose=True, normalize=False)
             if bb_type is 'gt':
                 out_image_list = out_image_list.map(crop_to_face_image_gt)
             elif bb_type is 'init':
                 out_image_list = out_image_list.map(crop_to_face_image_init)
+        else:
+            out_image_list = mio.import_images(img_set_dir, verbose=True)
 
     return out_image_list
 
