@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from skimage.color import gray2rgb
 
 
 def train_val_shuffle_inds_per_epoch(valid_inds, train_inds, train_iter, batch_size, log_path, save_log=True):
@@ -62,7 +63,10 @@ def load_images_landmarks_maps(img_list, batch_inds, primary=False, image_size=2
 
     for ind, img in enumerate(batch_menpo_images):
 
-        images[ind, :, :, :] = img.pixels_with_channels_at_back()
+        if img.n_channels < 3 and c_dim == 3:
+            images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
+        else:
+            images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
             lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
@@ -104,7 +108,10 @@ def load_images(img_list, batch_inds, image_size=256, c_dim=3, scale='255'):
         images = np.zeros([num_inputs, image_size, image_size, c_dim]).astype('float32')
 
         for ind, img in enumerate(batch_menpo_images):
-            images[ind, :, :, :] = img.pixels_with_channels_at_back()
+            if img.n_channels < 3 and c_dim == 3:
+                images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
+            else:
+                images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if scale is '255':
             images *= 255  # SAME AS ECT?
@@ -127,7 +134,10 @@ def load_images_landmarks(img_list, batch_inds, primary=False, image_size=256, c
 
     for ind, img in enumerate(batch_menpo_images):
 
-        images[ind, :, :, :] = img.pixels_with_channels_at_back()
+        if img.n_channels < 3 and c_dim == 3:
+            images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
+        else:
+            images[ind, :, :, :] = img.pixels_with_channels_at_back()
         lms_small = img.resize([image_size/4, image_size / 4]).landmarks['PTS'].points
         landmarks_small[ind, :, :] = np.minimum(lms_small, image_size/4 - 1)
 
@@ -184,10 +194,14 @@ def load_images_landmarks_maps_alloc_once(img_list, batch_inds, images, maps_sma
                                           save_landmarks=False):
 
     batch_menpo_images = img_list[batch_inds]
+    c_dim = images.shape[-1]
 
     for ind, img in enumerate(batch_menpo_images):
 
-        images[ind, :, :, :] = img.pixels_with_channels_at_back()
+        if img.n_channels < 3 and c_dim == 3:
+            images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
+        else:
+            images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
             lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
@@ -241,10 +255,13 @@ def create_heat_maps_base_alloc_once(
 def load_images_landmarks_alloc_once(
         img_list, batch_inds, images, landmarks_small, landmarks, primary=False, image_size=256, scale='255'):
     batch_menpo_images = img_list[batch_inds]
+    c_dim = images.shape[-1]
 
     for ind, img in enumerate(batch_menpo_images):
-
-        images[ind, :, :, :] = img.pixels_with_channels_at_back()
+        if img.n_channels < 3 and c_dim == 3:
+            images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
+        else:
+            images[ind, :, :, :] = img.pixels_with_channels_at_back()
         lms_small = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
         landmarks_small[ind, :, :] = np.minimum(lms_small, image_size / 4 - 1)
 
@@ -319,6 +336,7 @@ def load_images_landmarks_approx_maps_alloc_once(
         scale='255', gauss_filt_large=None, gauss_filt_small=None, win_mult=3.5, sigma=6, save_landmarks=False):
 
     batch_menpo_images = img_list[batch_inds]
+    c_dim = images.shape[-1]
 
     if primary:
         win_size_small = int(win_mult * sigma)
@@ -338,8 +356,10 @@ def load_images_landmarks_approx_maps_alloc_once(
             gauss_filt_large = (8. / 3) * sigma * gaussian(x_large, y_large, win_size_large, win_size_large, sigma=sigma)  # copied from ECT
 
     for ind, img in enumerate(batch_menpo_images):
-
-        images[ind, :, :, :] = img.pixels_with_channels_at_back()
+        if img.n_channels < 3 and c_dim == 3:
+            images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
+        else:
+            images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
             lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
@@ -409,8 +429,10 @@ def load_images_landmarks_approx_maps(
                                                            sigma=sigma)  # copied from ECT
 
     for ind, img in enumerate(batch_menpo_images):
-
-        images[ind, :, :, :] = img.pixels_with_channels_at_back()
+        if img.n_channels < 3 and c_dim == 3:
+            images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
+        else:
+            images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
             lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points

@@ -20,8 +20,8 @@ class DeepHeatmapsModel(object):
                  augment_basic=True, basic_start=0, augment_texture=False, p_texture=0., augment_geom=False,
                  p_geom=0., artistic_start=0, artistic_step=2, img_path='data',
                  save_log_path='logs', save_sample_path='sample', save_model_path='model', test_data='full',
-                 test_model_path='model/deep_heatmaps-1000', load_pretrain=False, load_primary_only=True,
-                 pre_train_path='saved_models/model/deep_heatmaps-50000'):
+                 test_model_path='model/deep_heatmaps-1000', load_pretrain=False, load_primary_only=False,
+                 pre_train_path='saved_models/model/deep_heatmaps-50000', menpo_verbose=True):
 
         # values to print to save parameter:
 
@@ -138,7 +138,7 @@ class DeepHeatmapsModel(object):
             margin=margin, bb_type=bb_type, test_data=self.test_data,
             augment_basic=(augment_basic and basic_start == 0),
             augment_texture=(augment_texture and artistic_start == 0 and p_texture > 0.), p_texture=p_texture,
-            augment_geom=(augment_geom and artistic_start == 0 and p_geom > 0.), p_geom=p_geom)
+            augment_geom=(augment_geom and artistic_start == 0 and p_geom > 0.), p_geom=p_geom, verbose=menpo_verbose)
 
         if mode == 'TRAIN':
 
@@ -156,7 +156,8 @@ class DeepHeatmapsModel(object):
                     self.valid_bb_dictionary = load_bb_dictionary(self.bb_dir, 'TEST', test_data=self.valid_data)
                     self.valid_img_menpo_list = load_menpo_image_list(
                         img_path, train_crop_dir, img_dir_ns, 'TEST', bb_dictionary=self.valid_bb_dictionary,
-                        image_size=self.image_size, margin=margin, bb_type=bb_type, test_data=self.valid_data)
+                        image_size=self.image_size, margin=margin, bb_type=bb_type, test_data=self.valid_data,
+                        verbose=menpo_verbose)
 
                     np.random.seed(0)
                     self.val_inds = np.arange(len(self.valid_img_menpo_list))
@@ -383,31 +384,24 @@ class DeepHeatmapsModel(object):
 
     def create_loss_ops(self):
 
-        def l2_loss_norm_eyes(pred_landmarks, real_landmarks, normalize=True, name='NME_loss'):
+        def l2_loss_norm_eyes(pred_landmarks, real_landmarks, normalize=True, name='NME'):
 
             with tf.name_scope(name):
-                with tf.name_scope('real_pred_landmarks_diff'):
-                    landmarks_diff = pred_landmarks - real_landmarks
-
+                with tf.name_scope('real_pred_landmarks_rmse'):
+                    landmarks_rms_err = tf.reduce_mean(
+                        tf.sqrt(tf.reduce_sum(tf.square(pred_landmarks - real_landmarks), axis=2)), axis=1)
                 if normalize:
                     with tf.name_scope('inter_pupil_dist'):
-                        with tf.name_scope('left_eye'):
+                        with tf.name_scope('left_eye_center'):
                             p1 = tf.reduce_mean(tf.slice(real_landmarks, [0, 42, 0], [-1, 6, 2]), axis=1)
-                        with tf.name_scope('right_eye'):
+                        with tf.name_scope('right_eye_center'):
                             p2 = tf.reduce_mean(tf.slice(real_landmarks, [0, 36, 0], [-1, 6, 2]), axis=1)
-                        eps = 1e-6
-                        eye_dist = tf.expand_dims(tf.expand_dims(
-                            tf.sqrt(tf.reduce_sum(tf.square(p1 - p2), axis=1)) + eps, axis=1), axis=1)
 
-                    norm_landmarks_diff = landmarks_diff / eye_dist
-                    l2_landmarks_norm = tf.reduce_mean(tf.square(norm_landmarks_diff))
+                        eye_dist = tf.sqrt(tf.reduce_sum(tf.square(p1 - p2), axis=1))
 
-                    out = l2_landmarks_norm
+                    return landmarks_rms_err / eye_dist
                 else:
-                    l2_landmarks = tf.reduce_mean(tf.square(landmarks_diff))
-                    out = l2_landmarks
-
-                return out
+                    return landmarks_rms_err
 
         if self.mode is 'TRAIN':
             primary_maps_diff = self.pred_hm_p - self.heatmaps_small
@@ -418,13 +412,14 @@ class DeepHeatmapsModel(object):
             self.total_loss = self.l_weight_primary * self.l2_primary + self.l_weight_fusion * self.l2_fusion
 
             if self.compute_nme:
-                self.nme_loss = l2_loss_norm_eyes(self.train_pred_lms, self.train_lms)
+                self.nme_loss = tf.reduce_mean(l2_loss_norm_eyes(self.train_pred_lms, self.train_lms))
 
             if self.valid_size > 0 and self.compute_nme:
-                self.valid_nme_loss = l2_loss_norm_eyes(self.valid_pred_lms,self.valid_lms)
+                self.valid_nme_loss = tf.reduce_mean(l2_loss_norm_eyes(self.valid_pred_lms,self.valid_lms))
 
         elif self.mode == 'TEST' and self.compute_nme:
-            self.nme_loss = l2_loss_norm_eyes(self.pred_lms, self.lms)
+            self.nme_per_image = l2_loss_norm_eyes(self.pred_lms, self.lms)
+            self.nme_loss = tf.reduce_mean(self.nme_per_image)
 
     def predict_landmarks_in_batches(self, image_paths, session):
 
