@@ -206,7 +206,7 @@ def warp_face_image_tps(img, new_shape):
 def load_menpo_image_list(
         img_dir, train_crop_dir, img_dir_ns, mode, bb_dictionary=None, image_size=256, margin=0.25,
         bb_type='gt', test_data='full', augment_basic=True, augment_texture=False, p_texture=0,
-        augment_geom=False, p_geom=0):
+        augment_geom=False, p_geom=0, verbose=False):
 
     def crop_to_face_image_gt(img):
         return crop_to_face_image(img, bb_dictionary, gt=True, margin=margin, image_size=image_size)
@@ -223,14 +223,14 @@ def load_menpo_image_list(
     if mode is 'TRAIN':
         if train_crop_dir is None:
             img_set_dir = os.path.join(img_dir, 'training_set')
-            out_image_list = mio.import_images(img_set_dir, verbose=True, normalize=False)
+            out_image_list = mio.import_images(img_set_dir, verbose=verbose, normalize=False)
             if bb_type is 'gt':
                 out_image_list = out_image_list.map(crop_to_face_image_gt)
             elif bb_type is 'init':
                 out_image_list = out_image_list.map(crop_to_face_image_init)
         else:
             img_set_dir = os.path.join(img_dir, train_crop_dir)
-            out_image_list = mio.import_images(img_set_dir, verbose=True)
+            out_image_list = mio.import_images(img_set_dir, verbose=verbose)
 
         if augment_texture:
             out_image_list = out_image_list.map(augment_menpo_img_ns_rand)
@@ -242,24 +242,24 @@ def load_menpo_image_list(
     else:
         img_set_dir = os.path.join(img_dir, test_data + '_set')
         if test_data in ['full', 'challenging', 'common', 'training', 'test']:
-            out_image_list = mio.import_images(img_set_dir, verbose=True, normalize=False)
+            out_image_list = mio.import_images(img_set_dir, verbose=verbose, normalize=False)
             if bb_type is 'gt':
                 out_image_list = out_image_list.map(crop_to_face_image_gt)
             elif bb_type is 'init':
                 out_image_list = out_image_list.map(crop_to_face_image_init)
         else:
-            out_image_list = mio.import_images(img_set_dir, verbose=True)
+            out_image_list = mio.import_images(img_set_dir, verbose=verbose)
 
     return out_image_list
 
 
 def reload_menpo_image_list(
         img_dir, train_crop_dir, img_dir_ns, mode, train_inds, image_size=256,
-        augment_basic=True, augment_texture=False, p_texture=0, augment_geom=False, p_geom=0):
+        augment_basic=True, augment_texture=False, p_texture=0, augment_geom=False, p_geom=0, verbose=False):
     img_menpo_list = load_menpo_image_list(
         img_dir=img_dir, train_crop_dir=train_crop_dir, img_dir_ns=img_dir_ns, mode=mode, image_size=image_size,
         augment_basic=augment_basic, augment_texture=augment_texture, p_texture=p_texture, augment_geom=augment_geom,
-        p_geom=p_geom)
+        p_geom=p_geom,verbose=verbose)
 
     img_menpo_list_train = img_menpo_list[train_inds]
 
