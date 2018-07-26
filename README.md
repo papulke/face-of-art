@@ -75,3 +75,6 @@ Give an example
 * menpo, menpofit
 * ect
 * mdm
+* neural style transfer
+* artists?
+* art dataset kaggle
