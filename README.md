@@ -1,4 +1,4 @@
-# Deep Face Heat-Maps & Artistic image Augmentation for Robust Facial Landmark Detection in Art
+# Using deep Face Heat-Maps & Artistic image Augmentation for Facial Landmark Detection in Art
 
 ## Getting Started
 
@@ -9,7 +9,7 @@
 
 ### Download datasets
 
-download datasets from [here] (https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0)
+download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0)
 
 for training you will need:
 * training set
