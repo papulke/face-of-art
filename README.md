@@ -9,6 +9,7 @@
 
 ### Download datasets
 TODO: CHANGE LINK!!!!!!!!!!!!!!!!!
+
 download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0)
 
 for training you will need:
@@ -25,7 +26,7 @@ for testing you will need:
 
 ### Install
 
-Create a virtual env named: deep_face_heatmaps_env and install the following:
+Create a virtual env named deep_face_heatmaps_env and install the following:
 * opencv
 * menpo
 * menpofit
@@ -61,7 +62,7 @@ Give an example
 ### Testing 
 
 * model.eval
-* eval script
+* eval script - primary / fusion
 
 ```
 Give an example
