@@ -51,8 +51,6 @@ git clone https://github.com/papulke/deep_face_heatmaps
 
 ## Instructions
 
-Explain how to run the automated tests for this system
-
 ### Training
 
 To train fusion network you need to run main_fusion.py (main_primary for primary network).
