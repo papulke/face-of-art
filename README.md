@@ -8,11 +8,10 @@
 * anaconda
 
 ### Download datasets
-TODO: CHANGE LINK!!!!!!!!!!!!!!!!!
 
 download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0)
 
-for training you will need:
+for training you will need to download the following folders:
 * training_set
 * Bounding_Boxes
 * crop_gt_margin_0.25 (to save time on cropping data to ground-truth face bounding-box with 25% margin)
