@@ -27,7 +27,7 @@ for testing you will need:
 
 ### Install
 
-Create a virtual env named deep_face_heatmaps_env and install the following:
+Create a virtual environment and install the following:
 * opencv
 * menpo
 * menpofit
@@ -55,9 +55,49 @@ Explain how to run the automated tests for this system
 
 ### Training
 
+To train fusion network you need to run main_fusion.py (main_primary for primary network).
+You can add the following flags:
 
+#### define mode and paths
+mode - TRAIN/TEST
+save_model_path - directory for saving the model
+save_sample_path - directory for saving the sampled images
+save_log_path - directory for saving the log file
+img_path - data directory
+test_model_path - saved model to test
+test_data - test set to use full/common/challenging/test/art
+
+#### pretrain parameters
+pre_train_path - pretrained model path
+load_pretrain - load pretrained weight (True/False)
+load_primary_only - load primary weight only (True/False)
+image_size
+c_dim - color channels
+num_landmarks - number of face landmarks
+
+#### optimization parameters
+train_iter - maximum training iterations
+batch_size
+learning_rate - initial learning rate
+momentum - optimizer momentum ? (remove from inputs)
+step - step for lr decay
+gamma - exponential base for lr decay
+
+#### augmentation parameters
+augment_basic - use basic augmentation (True/False)
+basic_start - min epoch to start basic augmentation
+augment_texture - use artistic texture augmentation (True/False)
+p_texture - initial probability of artistic texture augmentation
+augment_geom - use artistic geometric augmentation (True/False)
+p_geom - initial probability of artistic geometric augmentation
+artistic_step - increase probability of artistic augmentation every X epochs
+artistic_start - min epoch to start artistic augmentation
+
+example:
 ```
-Give an example
+source activate deep_face_heatmaps_env
+cd project_directory_path
+python main_fusion.py --
 ```
 
 ### Testing 
