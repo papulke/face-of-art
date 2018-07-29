@@ -15,53 +15,24 @@ class DeepHeatmapsModel(object):
 
     """facial landmark localization Network"""
 
-    def __init__(self, mode='TRAIN', train_iter=500000, learning_rate=1e-8, momentum=0.95, step=80000, gamma=0.1,
-                 batch_size=10, image_size=256, c_dim=3, num_landmarks=68,
-                 augment_basic=True, basic_start=0, augment_texture=False, p_texture=0., augment_geom=False,
-                 p_geom=0., artistic_start=0, artistic_step=2, img_path='data',
-                 save_log_path='logs', save_sample_path='sample', save_model_path='model', test_data='full',
-                 test_model_path='model/deep_heatmaps-1000', load_pretrain=False,
-                 pre_train_path='saved_models/model/deep_heatmaps-50000', menpo_verbose=True):
+    def __init__(self, mode='TRAIN', train_iter=100000, batch_size=10, learning_rate=1e-3, adam_optimizer=True,
+                 momentum=0.95, step=100000, gamma=0.1, weight_initializer='xavier', weight_initializer_std=0.01,
+                 bias_initializer=0.0, image_size=256, c_dim=3, num_landmarks=68, sigma=1.5, scale=1, margin=0.25,
+                 bb_type='gt', approx_maps=True, win_mult=3.33335, augment_basic=True, basic_start=0,
+                 augment_texture=False, p_texture=0., augment_geom=False, p_geom=0., artistic_step=-1, artistic_start=0,
+                 output_dir='output', save_model_path='model', save_sample_path='sample', save_log_path='logs',
+                 test_model_path='model/deep_heatmaps-50000', pre_train_path='model/deep_heatmaps-50000',load_pretrain=False,
+                 img_path='data', test_data='full', valid_data='full', valid_size=0, log_valid_every=5,
+                 train_crop_dir='crop_gt_margin_0.25', img_dir_ns='crop_gt_margin_0.25_ns',
+                 print_every=100, save_every=5000, sample_every=5000, sample_grid=9, sample_to_log=True,
+                 debug_data_size=20, debug=False, menpo_verbose=True):
 
-        # values to print to save parameter:
+        # define some extra parameters
 
-        # network init parameters
-        weight_initializer = 'xavier'  # random_normal or xavier
-        weight_initializer_std = 0.01  # std for random_normal weight init
-        bias_initializer = 0.0
-        adam_optimizer = False
-
-        # images/maps loading parameters
-        sigma = 1.5  # sigma for heatmap generation
-        scale = 1  # scale for image normalization 255 / 1 / 0
-        margin = 0.25  # for face crops
-        bb_type = 'gt'  # gt/init
-
-        # only one of the options below can be True!
-        approx_maps_gpu = False  # create heat-maps using conv with gaussian filter. use only with GPU support! (faster yet less accurate)
-        approx_maps_cpu = True  # create heat-maps by inserting gaussian filter around landmark locations (faster yet less accurate)
-        win_mult = 3.33335  # gaussian filter size for cpu/gpu approximation: 2 * sigma * win_mult + 1
-
-        valid_data = 'full'
-        valid_size = 0
-        train_crop_dir = 'crop_gt_margin_'+str(margin)  # directory of train images cropped to bb (+margin)
-        img_dir_ns = os.path.join(img_path, train_crop_dir+'_ns')  # dir of train imgs cropped to bb + style transfer
-
-        # sampling and logging parameters
-        self.print_every = 100  # print losses to screen + log
-        self.save_every = 5000  # save model
-        self.sample_every = 5000  # save images of gen heat maps compared to GT
-        self.sample_grid = 9  # number of training images in sample
         self.log_histograms = False  # save weight + gradient histogram to log
-        self.sample_to_log = True  # sample images to log instead of disk
         self.save_valid_images = True  # sample heat maps of validation images
-        self.log_valid_every = 5  # log validation loss (in epochs)
-        self.log_artistic_augmentation_probs = False
-
-        self.debug = False
-        self.debug_data_size = 20
-
-        self.compute_nme = True  # compute normalized mean error
+        self.log_artistic_augmentation_probs = False  # save p_texture & p_geom to log
+        self.approx_maps_gpu = False  # create heat-maps on gpu. NOT RECOMMENDED. TODO: REMOVE
 
         # for fine-tuning, choose reset_training_op==True. when resuming training, reset_training_op==False
         self.reset_training_op = False
@@ -70,8 +41,21 @@ class DeepHeatmapsModel(object):
 
         self.fast_img_gen = True
 
+        self.compute_nme = True  # compute normalized mean error
+
         self.config = tf.ConfigProto()
         self.config.gpu_options.allow_growth = True
+
+        # sampling and logging parameters
+        self.print_every = print_every  # print losses to screen + log
+        self.save_every = save_every  # save model
+        self.sample_every = sample_every  # save images of gen heat maps compared to GT
+        self.sample_grid = sample_grid  # number of training images in sample
+        self.sample_to_log = sample_to_log  # sample images to log instead of disk
+        self.log_valid_every = log_valid_every  # log validation loss (in epochs)
+
+        self.debug = debug
+        self.debug_data_size = debug_data_size
 
         self.load_pretrain = load_pretrain
         self.pre_train_path = pre_train_path
@@ -104,12 +88,11 @@ class DeepHeatmapsModel(object):
         self.sigma = sigma  # sigma for heatmap generation
         self.scale = scale  # scale for image normalization 255 / 1 / 0
         self.win_mult = win_mult  # gaussian filter size for cpu/gpu approximation: 2 * sigma * win_mult + 1
-        self.approx_maps_gpu = approx_maps_gpu  # create heat-maps on gpu (as conv with gaussian). faster yet less accurate
-        self.approx_maps_cpu = approx_maps_cpu  # create heat-maps by inserting gaussian filter around landmark locations
+        self.approx_maps_cpu = approx_maps  # create heat-maps by inserting gaussian filter around landmark locations
 
         self.test_data = test_data  # if mode is TEST, this choose the set to use full/common/challenging/test/art
         self.train_crop_dir = train_crop_dir
-        self.img_dir_ns = img_dir_ns
+        self.img_dir_ns = os.path.join(img_path, img_dir_ns)
         self.augment_basic = augment_basic  # perform basic augmentation (rotation,flip,crop)
         self.augment_texture = augment_texture  # perform artistic texture augmentation (NS)
         self.p_texture = p_texture  # initial probability of artistic texture augmentation
@@ -126,7 +109,7 @@ class DeepHeatmapsModel(object):
         self.bb_dir = os.path.join(img_path, 'Bounding_Boxes')
         self.bb_dictionary = load_bb_dictionary(self.bb_dir, mode, test_data=self.test_data)
         self.img_menpo_list = load_menpo_image_list(
-            img_path, train_crop_dir, img_dir_ns, mode, bb_dictionary=self.bb_dictionary,
+            img_path, train_crop_dir, self.img_dir_ns, mode, bb_dictionary=self.bb_dictionary,
             image_size=self.image_size, margin=margin, bb_type=bb_type, test_data=self.test_data,
             augment_basic=(augment_basic and basic_start == 0),
             augment_texture=(augment_texture and artistic_start == 0 and p_texture > 0.), p_texture=p_texture,
@@ -147,7 +130,7 @@ class DeepHeatmapsModel(object):
 
                 self.valid_bb_dictionary = load_bb_dictionary(self.bb_dir, 'TEST', test_data=self.valid_data)
                 self.valid_img_menpo_list = load_menpo_image_list(
-                    img_path, train_crop_dir, img_dir_ns, 'TEST', bb_dictionary=self.valid_bb_dictionary,
+                    img_path, train_crop_dir, self.img_dir_ns, 'TEST', bb_dictionary=self.valid_bb_dictionary,
                     image_size=self.image_size, margin=margin, bb_type=bb_type, test_data=self.valid_data,
                     verbose=menpo_verbose)
 
@@ -874,4 +857,3 @@ class DeepHeatmapsModel(object):
             test_image_map = sess.run(pred_hm_p, {self.images: np.expand_dims(test_image,0)})
 
         return test_image_map
-
