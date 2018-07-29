@@ -15,7 +15,7 @@ for training you will need to download the following folders:
 * training_set
 * Bounding_Boxes
 * crop_gt_margin_0.25 (to save time on cropping data to ground-truth face bounding-box with 25% margin)
-* crop_gt_margin_0.25_ns (for using artistic style texture augmentation)
+* crop_gt_margin_0.25_ns (for using artistic texture augmentation)
 
 for testing you will need:
 * full_set
