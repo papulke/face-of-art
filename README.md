@@ -131,9 +131,9 @@ python main_fusion.py --mode='TRAIN' --output_dir='test_artistic_aug' --augment_
 ### Testing 
 
 There are 3 options to test our models:
-\n1- using main_fusion.py / main_primary.py
-2- using evaluate_model.py
-3- using evaluate_and_compare_multiple_models.py
+1. using main_fusion.py / main_primary.py
+2. using evaluate_model.py
+3. using evaluate_and_compare_multiple_models.py
 
 #### Evaluating using main files
 
