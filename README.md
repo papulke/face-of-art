@@ -187,16 +187,16 @@ Using this option you can create a unified CED plot of multiple input models.
 in addition, AUC measures and failure rates will be printed to screen.
 
 ** NOTICE: 
-* each model should be placed in a different directory (using a meaningful name e.g: "fusion_lr_1e-6"/"primary_lr_1e-4"/"fusion_aug_texture" etc.)
-* each model directory should contain one saved model.
-* all model directories should be placed in one directory (e.g: "models_to_compare")
-* it is assumed that model meta file is provided
-* it is assumed that all models were trained with the same: bb_type, scale, margin, num_landmarks, image_size and c_dim
+* Each model should be placed in a different directory (using a meaningful name e.g: "fusion_lr_1e-6"/"primary_lr_1e-4"/"fusion_aug_texture" etc.). including the word primary/fusion in the directory names is a must!
+* Each model directory should contain one saved model.
+* All model directories should be placed in one directory (e.g: "models_to_compare")
+* It is assumed that model meta files is provided
+* It is assumed that all models were trained with the same: bb_type, scale, margin, num_landmarks, image_size and c_dim
 
 example:
 ```
-python evaluate_and_compare_multiple_models.py --pre_train_models_dir='models_to_compare' --test_data='test' \
---max_error=0.08 --log_path='logs/nme_statistics'
+python evaluate_and_compare_multiple_models.py --pre_train_models_dir='models_to_compare' \
+--test_data='test'  --max_error=0.08 --log_path='logs/nme_statistics'
 ```
 
 
