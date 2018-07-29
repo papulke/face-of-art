@@ -186,7 +186,7 @@ python evaluate_model.py --pre_train_path='model/deep_heatmaps-100000' --test_da
 Using this option you can create a unified CED plot of multiple input models.
 in addition, AUC measures and failure rates will be printed to screen.
 
-**NOTICE: each model should be placed in a different directory (using a meaningful name e.g: "fusion_lr_1e-6"/"primary_lr_1e-4"/"fusion_aug_texture" etc.)
+** NOTICE: each model should be placed in a different directory (using a meaningful name e.g: "fusion_lr_1e-6"/"primary_lr_1e-4"/"fusion_aug_texture" etc.)
 
 ## Acknowledgments
 
