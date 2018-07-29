@@ -115,9 +115,9 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
     h, w = face_crop.shape
     diff = h - w
     if diff < 0:
-        face_crop.pixels = np.pad(face_crop.pixels, ((0, 0), (0, -1 * diff), (0, 0)), 'reflect')
+        face_crop.pixels = np.pad(face_crop.pixels, ((0, 0), (0, -1 * diff), (0, 0)), 'mean')
     elif diff > 0:
-        face_crop.pixels = np.pad(face_crop.pixels, ((0, 0), (0, 0), (0, diff)), 'reflect')
+        face_crop.pixels = np.pad(face_crop.pixels, ((0, 0), (0, 0), (0, diff)), 'mean')
 
     face_crop = face_crop.resize([image_size, image_size])
 

@@ -45,7 +45,7 @@ def create_heat_maps_from_landmarks(landmarks, num_landmarks=68, image_size=256,
 
 
 def load_images_landmarks_maps(img_list, batch_inds, primary=False, image_size=256, c_dim=3,
-                               num_landmarks=68, scale='255', sigma=6, save_landmarks=False):
+                               num_landmarks=68, scale=255, sigma=6, save_landmarks=False):
 
     num_inputs = len(batch_inds)
     batch_menpo_images = img_list[batch_inds]
@@ -89,9 +89,9 @@ def load_images_landmarks_maps(img_list, batch_inds, primary=False, image_size=2
         if save_landmarks:
             landmarks[ind, :, :] = lms
 
-    if scale is '255':
+    if scale is 255:
         images *= 255  # SAME AS ECT?
-    elif scale is '0':
+    elif scale is 0:
         images = 2 * images - 1
 
     if primary:
@@ -100,7 +100,7 @@ def load_images_landmarks_maps(img_list, batch_inds, primary=False, image_size=2
         return images, maps_small, maps, landmarks
 
 
-def load_images(img_list, batch_inds, image_size=256, c_dim=3, scale='255'):
+def load_images(img_list, batch_inds, image_size=256, c_dim=3, scale=255):
 
         num_inputs = len(batch_inds)
         batch_menpo_images = img_list[batch_inds]
@@ -113,9 +113,9 @@ def load_images(img_list, batch_inds, image_size=256, c_dim=3, scale='255'):
             else:
                 images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
-        if scale is '255':
+        if scale is 255:
             images *= 255  # SAME AS ECT?
-        elif scale is '0':
+        elif scale is 0:
             images = 2 * images - 1
 
         return images
@@ -123,7 +123,7 @@ def load_images(img_list, batch_inds, image_size=256, c_dim=3, scale='255'):
 
 # loading functions without pre-allocation with gpu heatmap generation
 
-def load_images_landmarks(img_list, batch_inds, primary=False, image_size=256, c_dim=3, num_landmarks=68, scale='255'):
+def load_images_landmarks(img_list, batch_inds, primary=False, image_size=256, c_dim=3, num_landmarks=68, scale=255):
 
     num_inputs = len(batch_inds)
     batch_menpo_images = img_list[batch_inds]
@@ -145,9 +145,9 @@ def load_images_landmarks(img_list, batch_inds, primary=False, image_size=256, c
             lms = img.landmarks['PTS'].points
             landmarks[ind, :, :] = np.minimum(lms, image_size-1)
 
-    if scale is '255':
+    if scale is 255:
         images *= 255  # SAME AS ECT?
-    elif scale is '0':
+    elif scale is 0:
         images = 2 * images - 1
 
     if primary:
@@ -190,7 +190,7 @@ def create_heat_maps_from_landmarks_alloc_once(landmarks, maps, num_landmarks=68
 
 
 def load_images_landmarks_maps_alloc_once(img_list, batch_inds, images, maps_small, maps, landmarks,
-                                          primary=False, image_size=256, num_landmarks=68, scale='255', sigma=6,
+                                          primary=False, image_size=256, num_landmarks=68, scale=255, sigma=6,
                                           save_landmarks=False):
 
     batch_menpo_images = img_list[batch_inds]
@@ -224,9 +224,9 @@ def load_images_landmarks_maps_alloc_once(img_list, batch_inds, images, maps_sma
         if save_landmarks:
             landmarks[ind, :, :] = lms
 
-    if scale is '255':
+    if scale is 255:
         images *= 255  # SAME AS ECT?
-    elif scale is '0':
+    elif scale is 0:
         images = 2 * images - 1
 
 
@@ -253,7 +253,7 @@ def create_heat_maps_base_alloc_once(
 
 
 def load_images_landmarks_alloc_once(
-        img_list, batch_inds, images, landmarks_small, landmarks, primary=False, image_size=256, scale='255'):
+        img_list, batch_inds, images, landmarks_small, landmarks, primary=False, image_size=256, scale=255):
     batch_menpo_images = img_list[batch_inds]
     c_dim = images.shape[-1]
 
@@ -269,9 +269,9 @@ def load_images_landmarks_alloc_once(
             lms = img.landmarks['PTS'].points
             landmarks[ind, :, :] = np.minimum(lms, image_size - 1)
 
-    if scale is '255':
+    if scale is 255:
         images *= 255  # SAME AS ECT?
-    elif scale is '0':
+    elif scale is 0:
         images = 2 * images - 1
 
 
@@ -333,7 +333,7 @@ def create_approx_heat_maps_alloc_once(landmarks, maps, gauss_filt=None, win_mul
 
 def load_images_landmarks_approx_maps_alloc_once(
         img_list, batch_inds, images, maps_small, maps, landmarks, primary=False, image_size=256, num_landmarks=68,
-        scale='255', gauss_filt_large=None, gauss_filt_small=None, win_mult=3.5, sigma=6, save_landmarks=False):
+        scale=255, gauss_filt_large=None, gauss_filt_small=None, win_mult=3.5, sigma=6, save_landmarks=False):
 
     batch_menpo_images = img_list[batch_inds]
     c_dim = images.shape[-1]
@@ -383,16 +383,16 @@ def load_images_landmarks_approx_maps_alloc_once(
         if save_landmarks:
             landmarks[ind, :, :] = lms
 
-    if scale is '255':
+    if scale is 255:
         images *= 255  # SAME AS ECT?
-    elif scale is '0':
+    elif scale is 0:
         images = 2 * images - 1
 
 
 # loading functions without pre-allocation, with approx (cpu) heat-map generation
 
 def load_images_landmarks_approx_maps(
-        img_list, batch_inds, primary=False, image_size=256, num_landmarks=68, c_dim=3, scale='255',
+        img_list, batch_inds, primary=False, image_size=256, num_landmarks=68, c_dim=3, scale=255,
         gauss_filt_large=None, gauss_filt_small=None, win_mult=3.5, sigma=6, save_landmarks=False):
 
     num_inputs = len(batch_inds)
@@ -456,9 +456,9 @@ def load_images_landmarks_approx_maps(
         if save_landmarks:
             landmarks[ind, :, :] = lms
 
-    if scale is '255':
+    if scale is 255:
         images *= 255  # SAME AS ECT?
-    elif scale is '0':
+    elif scale is 0:
         images = 2 * images - 1
 
     if primary:

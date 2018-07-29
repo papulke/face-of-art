@@ -67,12 +67,12 @@ def map_to_rgb(map_gray):
     return map_rgb
 
 
-def create_img_with_landmarks(image, landmarks, image_size=256, num_landmarks=68, scale='255', circle_size=2):
+def create_img_with_landmarks(image, landmarks, image_size=256, num_landmarks=68, scale=255, circle_size=2):
     image = image.reshape(image_size, image_size, -1)
 
-    if scale is '0':
+    if scale is 0:
         image = 127.5 * (image + 1)
-    elif scale is '1':
+    elif scale is 1:
         image *= 255
 
     landmarks = landmarks.reshape(num_landmarks, 2)
@@ -103,7 +103,7 @@ def heat_maps_to_image(maps, landmarks=None, image_size=256, num_landmarks=68):
 
 
 def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_size=256, num_landmarks=68,
-                                   num_samples=9, scale='255', circle_size=2, test_data='full', fast=False):
+                                   num_samples=9, scale=255, circle_size=2, test_data='full', fast=False):
 
     images = images[:num_samples]
     if maps.shape[1] is not image_size:
@@ -160,16 +160,16 @@ def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_
     return merged
 
 
-def map_comapre_channels(images, maps1, maps2, image_size=64, num_landmarks=68, scale='255', test_data='full'):
+def map_comapre_channels(images, maps1, maps2, image_size=64, num_landmarks=68, scale=255, test_data='full'):
         map1 = maps1[0]
         map2 = maps2[0]
         image = images[0]
 
         if image.shape[0] is not image_size:
             image = zoom(image, (0.25, 0.25, 1))
-        if scale is '1':
+        if scale is 1:
             image *= 255
-        elif scale is '0':
+        elif scale is 0:
             image = 127.5 * (image + 1)
 
         row = np.ceil(np.sqrt(num_landmarks)).astype(np.int64)
@@ -220,7 +220,7 @@ def heat_maps_to_image_rgb(maps, landmarks=None, image_size=256, num_landmarks=6
 
 
 def merge_images_landmarks_maps_gt_alloc_once(
-        images, maps, maps_gt, merged, landmarks, image_size=256, num_landmarks=68, num_samples=9, scale='255',
+        images, maps, maps_gt, merged, landmarks, image_size=256, num_landmarks=68, num_samples=9, scale=255,
         circle_size=2, test_data='full', approx=False, add_landmarks=True):
 
     row = int(np.sqrt(num_samples))
@@ -273,7 +273,7 @@ def merge_images_landmarks_maps_gt_alloc_once(
                     maps_gt[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks, approx=approx)
 
 
-def map_comapre_channels_alloc_once(image, map1, map2, merged, image_size=64, num_landmarks=68, scale='255', test_data='full'):
+def map_comapre_channels_alloc_once(image, map1, map2, merged, image_size=64, num_landmarks=68, scale=255, test_data='full'):
 
     row = int(np.ceil(np.sqrt(num_landmarks)))
 
@@ -299,9 +299,9 @@ def map_comapre_channels_alloc_once(image, map1, map2, merged, image_size=64, nu
     i = (idx + 1) // row
     j = (idx + 1) % row
 
-    if scale is '1':
+    if scale is 1:
         image *= 255
-    elif scale is '0':
+    elif scale is 0:
         image = 127.5 * (image + 1)
 
     if image.shape[0] is not image_size:

@@ -33,14 +33,14 @@ class DeepHeatmapsModel(object):
 
         # images/maps loading parameters
         sigma = 1.5  # sigma for heatmap generation
-        scale = '1'  # scale for image normalization '255' / '1' / '0'
+        scale = 1  # scale for image normalization 255 / 1 / 0
         margin = 0.25  # for face crops
         bb_type = 'gt'  # gt/init
 
         # only one of the options below can be True!
         approx_maps_gpu = False  # create heat-maps using conv with gaussian filter. use only with GPU support! (faster yet less accurate)
         approx_maps_cpu = True  # create heat-maps by inserting gaussian filter around landmark locations (faster yet less accurate)
-        win_mult = 4.  # gaussian filter size for cpu/gpu approximation: 2 * sigma * win_mult + 1
+        win_mult = 3.33335  # gaussian filter size for cpu/gpu approximation: 2 * sigma * win_mult + 1
 
         valid_data = 'full'
         valid_size = 0
@@ -102,7 +102,7 @@ class DeepHeatmapsModel(object):
         self.adam_optimizer = adam_optimizer
 
         self.sigma = sigma  # sigma for heatmap generation
-        self.scale = scale  # scale for image normalization '255' / '1' / '0'
+        self.scale = scale  # scale for image normalization 255 / 1 / 0
         self.win_mult = win_mult  # gaussian filter size for cpu/gpu approximation: 2 * sigma * win_mult + 1
         self.approx_maps_gpu = approx_maps_gpu  # create heat-maps on gpu (as conv with gaussian). faster yet less accurate
         self.approx_maps_cpu = approx_maps_cpu  # create heat-maps by inserting gaussian filter around landmark locations
