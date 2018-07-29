@@ -125,17 +125,24 @@ You can add the following flags:
 example for training a model with texture augmentation (100% of images) and geometric augmentation (70% of images):
 ```
 source activate deep_face_heatmaps_env
-python main_fusion.py --output_dir='test_artistic_aug' --augment_geom=True \
+python main_fusion.py --mode='TRAIN' --output_dir='test_artistic_aug' --augment_geom=True \
 --augment_texture=True --p_texture=1. --p_geom=0.7
 ```
 
 ### Testing 
 
-* model.eval
-* eval script - primary / fusion
+There are 3 options to test our models:
+1- using main_fusion.py / main_primary.py
+2- using evaluate_model.py
+3- using evaluate_and_compare_multiple_models.py
+
+#### Evaluating using main files
+
+Using this option you can sample heat-maps + predictions of the selected test data.
+If ground-truth landmarks are provided, the normalized mean error will be calculated.
 
 ```
-Give an example
+python main_primary.py --mode='TEST' --test_model_path='model/deep_heatmaps-100000' --test_data='challenging'
 ```
 
 ## Acknowledgments
