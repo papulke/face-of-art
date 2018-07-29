@@ -54,6 +54,7 @@ git clone https://github.com/papulke/deep_face_heatmaps
 ### Training
 
 To train fusion network you need to run main_fusion.py (or main_primary.py for primary network).
+
 You can add the following flags:
 
 #### mode and logging parameters
