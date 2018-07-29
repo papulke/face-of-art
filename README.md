@@ -75,8 +75,8 @@ You can add the following flags:
 * save_log_path - directory for saving the log file
 * img_path - data directory
 * test_model_path - saved model to test
-* test_data - test set to use: full/common/challenging/test/art
-* valid_data - validation set to use: full/common/challenging/test/art
+* test_data - test set to use: full/common/challenging/test
+* valid_data - validation set to use: full/common/challenging/test
 * train_crop_dir - directory of train images cropped to bb (+margin)
 * img_dir_ns - dir of train imgs cropped to bb + style transfer
 
@@ -139,9 +139,10 @@ Give an example
 
 ## Acknowledgments
 
-* menpo, menpofit
-* ect
-* mdm
+* [menpo](https://github.com/menpo/menpo)
+* [menpofit](https://github.com/menpo/menpofit)
+* [ect](https://github.com/HongwenZhang/ECT-FaceAlignment)
+* [mdm](https://github.com/trigeorgis/mdm)
 * neural style transfer
 * artists?
 * art dataset kaggle
