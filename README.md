@@ -151,12 +151,12 @@ Using this option you can get normalized mean error statistics of the model on t
 This option will provide AUC measure, failure rate and CED plot.
 
 You can add the following flags:
-##### define paths
+#### define paths
 * img_dir - data directory (containing subdirectories of datasets and BBs)
 * test_data - test set to use full/common/challenging/test
 * pre_train_path - pretrained model path
 
-##### parameters used to train network
+#### parameters used to train network
 * network_type - network architecture 'Fusion'/'Primary'
 * image_size - image size
 * c_dim - color channels
@@ -165,12 +165,12 @@ You can add the following flags:
 * margin - margin for face crops - % of bb size
 * bb_type - bb to use (gt':for ground truth / 'init':for face detector output)
 
-##### choose batch size and debug data size
+#### choose batch size and debug data size
 * batch_size - batch size
 * debug - run in debug mode - use subset of the data (bool)
 * debug_data_size - subset data size to test in debug mode
 
-##### statistics parameters
+#### statistics parameters
 * max_error - error threshold to be considered as failure
 * save_log - save statistics to log_dir (bool)
 * log_path - directory for saving NME statistics
@@ -181,10 +181,12 @@ python evaluate_model.py --pre_train_path='model/deep_heatmaps-100000' --test_da
 --network_type='Fusion' --max_error=0.07
 ```
 
-#### Evaluating using evaluate_model
+#### Evaluating using evaluate_and_compare_multiple_models
 
-Using this option you can get normalized mean error statistics of the model on the selected test data.
-This option will provide AUC measure, failure rate and CED plot.
+Using this option you can create a unified CED plot of multiple input models.
+in addition, AUC measures and failure rates will be printed to screen.
+
+**NOTICE: each model should be placed in a different directory (using a meaningful name e.g: "fusion_lr_1e-6"/"primary_lr_1e-4"/"fusion_aug_texture" etc.)
 
 ## Acknowledgments
 
