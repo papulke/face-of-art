@@ -74,7 +74,7 @@ You can add the following flags:
 * save_model_path - directory for saving the model
 * save_sample_path - directory for saving the sampled images
 * save_log_path - directory for saving the log file
-* img_path - data directory
+* img_path - data directory (containing subdirectories of datasets and BBs)
 * test_model_path - saved model to test
 * test_data - test set to use: full/common/challenging/test
 * valid_data - validation set to use: full/common/challenging/test
@@ -140,10 +140,51 @@ There are 3 options to test our models:
 Using this option you can sample heat-maps + predictions of the selected test data.
 If ground-truth landmarks are provided, the normalized mean error will be calculated.
 
+example:
 ```
 python main_primary.py --mode='TEST' --test_model_path='model/deep_heatmaps-100000' \
 --test_data='challenging'
 ```
+#### Evaluating using evaluate_model
+
+Using this option you can get normalized mean error statistics of the model on the selected test data.
+This option will provide AUC measure, failure rate and CED plot.
+
+You can add the following flags:
+##### define paths
+* img_dir - data directory (containing subdirectories of datasets and BBs)
+* test_data - test set to use full/common/challenging/test
+* pre_train_path - pretrained model path
+
+##### parameters used to train network
+* network_type - network architecture 'Fusion'/'Primary'
+* image_size - image size
+* c_dim - color channels
+* num_landmarks - number of face landmarks
+* scale - scale for image normalization 255/1/0
+* margin - margin for face crops - % of bb size
+* bb_type - bb to use (gt':for ground truth / 'init':for face detector output)
+
+##### choose batch size and debug data size
+* batch_size - batch size
+* debug - run in debug mode - use subset of the data (bool)
+* debug_data_size - subset data size to test in debug mode
+
+##### statistics parameters
+* max_error - error threshold to be considered as failure
+* save_log - save statistics to log_dir (bool)
+* log_path - directory for saving NME statistics
+
+example:
+```
+python evaluate_model.py --pre_train_path='model/deep_heatmaps-100000' --test_data='full' \
+--network_type='Fusion' --max_error=0.07
+```
+
+#### Evaluating using evaluate_model
+
+Using this option you can get normalized mean error statistics of the model on the selected test data.
+This option will provide AUC measure, failure rate and CED plot.
 
 ## Acknowledgments
 
