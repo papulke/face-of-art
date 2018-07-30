@@ -163,7 +163,7 @@ You can add the following flags:
 * num_landmarks - number of face landmarks
 * scale - scale for image normalization 255/1/0
 * margin - margin for face crops - % of bb size
-* bb_type - bb to use (gt':for ground truth / 'init':for face detector output)
+* bb_type - bb to use ('gt':for ground truth / 'init':for face detector output)
 
 #### choose batch size and debug data size
 * batch_size - batch size
