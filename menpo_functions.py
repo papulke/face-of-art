@@ -39,7 +39,7 @@ def load_bb_files(bb_file_dirs):
             bb_init = bb_mat[0][i][0][0][1] - 1  # matlab indicies
             bb_gt = bb_mat[0][i][0][0][2] - 1  # matlab indicies
             if str(name) in bb_files_dict.keys():
-                print str(name), 'already exists'
+                print (str(name) + ' already exists')
             else:
                 bb_files_dict[str(name)] = (bb_init, bb_gt)
     return bb_files_dict
