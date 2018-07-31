@@ -4,7 +4,7 @@
 
 ### Requirements
 
-* python 2.7
+* python
 * anaconda
 
 ### Download datasets
@@ -33,6 +33,7 @@ Create a virtual environment and install the following:
 * menpofit
 * tensorflow-gpu
 
+for python 2:
 ```
 conda create -n deep_face_heatmaps_env python=2.7 anaconda
 source activate deep_face_heatmaps_env
@@ -40,6 +41,17 @@ conda install -c menpo opencv
 conda install -c menpo menpo
 conda install -c menpo menpofit
 pip install tensorflow-gpu
+
+```
+
+for python 3:
+```
+conda create -n deep_face_heatmaps_env python=3.5 anaconda
+source activate deep_face_heatmaps_env
+conda install -c menpo opencv
+conda install -c menpo menpo
+conda install -c menpo menpofit
+pip3 install tensorflow-gpu
 
 ```
 
