@@ -109,6 +109,7 @@ def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_
     if maps.shape[1] is not image_size:
         images = zoom(images, (1, 0.25, 0.25, 1))
         image_size /= 4
+        image_size=int(image_size)
     if maps_gt.shape[1] is not image_size:
         maps_gt = zoom(maps_gt, (1, 0.25, 0.25, 1))
 
@@ -227,6 +228,7 @@ def merge_images_landmarks_maps_gt_alloc_once(
 
     if maps.shape[1] is not image_size:
         image_size /= 4
+        image_size = int(image_size)
         rescale_img = True
     else:
         rescale_img = False

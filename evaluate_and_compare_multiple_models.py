@@ -56,7 +56,7 @@ def main(_):
 
         model_path = glob(os.path.join(model_dir, '*meta'))[0].split('.meta')[0]
 
-        print '\n##### EVALUATING MODELS (%d/%d) #####' % (i+1,len(test_model_dirs))
+        print ('\n##### EVALUATING MODELS (%d/%d) #####' % (i+1,len(test_model_dirs)))
 
         tf.reset_default_graph()  # reset graph
 

@@ -36,13 +36,13 @@ def evaluate_heatmap_fusion_network(model_path, img_path, test_data, batch_size=
 
     if debug:
         test_menpo_img_list = test_menpo_img_list[:debug_data_size]
-        print '\n*** FUSION NETWORK: calculating normalized mean error on:', test_data, 'set (%d images - debug mode)***' % (
-        debug_data_size)
+        print ('\n*** FUSION NETWORK: calculating normalized mean error on: ' + test_data +
+               ' set (%d images - debug mode) ***' % debug_data_size)
     else:
-        print '\n*** FUSION NETWORK: calculating normalized mean error on:', test_data, 'set (%d images)***' % (
-        len(test_menpo_img_list))
+        print ('\n*** FUSION NETWORK: calculating normalized mean error on: ' + test_data + ' set (%d images) ***' %
+               (len(test_menpo_img_list)))
 
-    # creat heatmap model
+    # create heatmap model
 
     tf.reset_default_graph()
 
@@ -72,11 +72,11 @@ def evaluate_heatmap_fusion_network(model_path, img_path, test_data, batch_size=
         saver = tf.train.Saver()
         saver.restore(session, model_path)
 
-        print '\nnum batches:', num_batches_reminder
+        print ('\nnum batches: ' + str(num_batches_reminder))
 
         err = []
         for j in range(num_batches):
-            print 'batch %d / %d ...' % (j + 1, num_batches_reminder)
+            print ('batch %d / %d ...' % (j + 1, num_batches_reminder))
             batch_inds = img_inds[j * batch_size:(j + 1) * batch_size]
 
             batch_images, _, batch_landmarks_gt = load_images_landmarks(
@@ -93,7 +93,7 @@ def evaluate_heatmap_fusion_network(model_path, img_path, test_data, batch_size=
             err = np.hstack((err, batch_err))
 
         if reminder > 0:
-            print 'batch %d / %d ...' % (j + 2, num_batches_reminder)
+            print ('batch %d / %d ...' % (j + 2, num_batches_reminder))
             reminder_inds = img_inds[-reminder:]
 
             batch_images, _, batch_landmarks_gt = load_images_landmarks(
@@ -109,8 +109,8 @@ def evaluate_heatmap_fusion_network(model_path, img_path, test_data, batch_size=
                 model.nme_per_image, {model.lms: batch_landmarks_gt, model.pred_lms: batch_pred_landmarks})
             err = np.hstack((err, batch_err))
 
-        print '\ndone!'
-        print 'run time:', time() - t
+        print ('\ndone!')
+        print ('run time: ' + str(time() - t))
 
     return err
 
@@ -130,13 +130,13 @@ def evaluate_heatmap_primary_network(model_path, img_path, test_data, batch_size
 
     if debug:
         test_menpo_img_list = test_menpo_img_list[:debug_data_size]
-        print '\n*** PRIMARY NETWORK: calculating normalized mean error on:', test_data, 'set (%d images - debug mode)***' % (
-        debug_data_size)
+        print ('\n*** PRIMARY NETWORK: calculating normalized mean error on: ' + test_data +
+               ' set (%d images - debug mode) ***' % debug_data_size)
     else:
-        print '\n*** PRIMARY NETWORK: calculating normalized mean error on:', test_data, 'set (%d images)***' % (
-        len(test_menpo_img_list))
+        print ('\n*** PRIMARY NETWORK: calculating normalized mean error on: ' + test_data +
+               ' set (%d images) ***' % (len(test_menpo_img_list)))
 
-    # creat heatmap model
+    # create heatmap model
 
     tf.reset_default_graph()
 
@@ -166,11 +166,11 @@ def evaluate_heatmap_primary_network(model_path, img_path, test_data, batch_size
         saver = tf.train.Saver()
         saver.restore(session, model_path)
 
-        print '\nnum batches:', num_batches_reminder
+        print ('\nnum batches: ' + str(num_batches_reminder))
 
         err = []
         for j in range(num_batches):
-            print 'batch %d / %d ...' % (j + 1, num_batches_reminder)
+            print ('batch %d / %d ...' % (j + 1, num_batches_reminder))
             batch_inds = img_inds[j * batch_size:(j + 1) * batch_size]
 
             batch_images, _, batch_landmarks_gt = load_images_landmarks(
@@ -190,7 +190,7 @@ def evaluate_heatmap_primary_network(model_path, img_path, test_data, batch_size
             err = np.hstack((err, batch_err))
 
         if reminder > 0:
-            print 'batch %d / %d ...' % (j + 2, num_batches_reminder)
+            print ('batch %d / %d ...' % (j + 2, num_batches_reminder))
             reminder_inds = img_inds[-reminder:]
 
             batch_images, _, batch_landmarks_gt = load_images_landmarks(
@@ -209,8 +209,8 @@ def evaluate_heatmap_primary_network(model_path, img_path, test_data, batch_size
                 model.nme_per_image, {model.lms_small: batch_landmarks_gt, model.pred_lms_small: batch_pred_landmarks})
             err = np.hstack((err, batch_err))
 
-        print '\ndone!'
-        print 'run time:', time() - t
+        print ('\ndone!')
+        print ('run time: ' + str(time() - t))
 
     return err
 
@@ -243,13 +243,13 @@ def print_nme_statistics(
         errors, model_path, network_type, test_data, max_error=0.08, log_path='', save_log=True, plot_ced=True):
     auc, failures = AUC(errors, max_error=max_error)
 
-    print "\n****** NME statistics for " + network_type + " Network ******\n"
-    print "* model path: " + model_path
-    print "* dataset: " + test_data + ' set'
+    print ("\n****** NME statistics for " + network_type + " Network ******\n")
+    print ("* model path: " + model_path)
+    print ("* dataset: " + test_data + ' set')
 
-    print "\n* Normalized mean error (percentage of eye distance): %.2f" % (100 * np.mean(errors))
-    print "\n* AUC @ %.2f: %.2f" % (max_error, 100 * auc)
-    print "\n* failure rate @ %.2f: %.2f" % (max_error, 100 * failures) + '%'
+    print ("\n* Normalized mean error (percentage of eye distance): %.2f" % (100 * np.mean(errors)))
+    print ("\n* AUC @ %.2f: %.2f" % (max_error, 100 * auc))
+    print ("\n* failure rate @ %.2f: %.2f" % (max_error, 100 * failures) + '%')
 
     if plot_ced:
         plt.figure()
@@ -265,19 +265,19 @@ def print_nme_statistics(
     if save_log:
         with open(os.path.join(log_path, network_type.lower() + "_nme_statistics_on_" + test_data + "_set.txt"),
                   "wb") as f:
-            f.write("************************************************")
-            f.write("\n****** NME statistics for " + network_type + " Network ******\n")
-            f.write("************************************************")
-            f.write("\n\n* model path: " + model_path)
-            f.write("\n\n* dataset: " + test_data + ' set')
-            f.write("\n\n* Normalized mean error (percentage of eye distance): %.2f" % (100 * np.mean(errors)))
-            f.write("\n\n* AUC @ %.2f: %.2f" % (max_error, 100 * auc))
-            f.write("\n\n* failure rate @ %.2f: %.2f" % (max_error, 100 * failures) + '%')
+            f.write(b"************************************************")
+            f.write(("\n****** NME statistics for " + str(network_type) + " Network ******\n").encode())
+            f.write(b"************************************************")
+            f.write(("\n\n* model path: " + str(model_path)).encode())
+            f.write(("\n\n* dataset: " + str(test_data) + ' set').encode())
+            f.write(b"\n\n* Normalized mean error (percentage of eye distance): %.2f" % (100 * np.mean(errors)))
+            f.write(b"\n\n* AUC @ %.2f: %.2f" % (max_error, 100 * auc))
+            f.write(("\n\n* failure rate @ %.2f: %.2f" % (max_error, 100 * failures) + '%').encode())
 
         plt.savefig(os.path.join(log_path, network_type.lower() + '_nme_ced_on_' + test_data + '_set.png'),
                     bbox_inches='tight')
 
-        print '\nlog path:', log_path
+        print ('\nlog path: ' + log_path)
 
 
 def print_ced_compare_methods(method_errors,method_names,test_data,log_path='', save_log=True):
@@ -291,4 +291,4 @@ def print_ced_compare_methods(method_errors,method_names,test_data,log_path='', 
     )
     if save_log:
         plt.savefig(os.path.join(log_path,'nme_ced_on_'+test_data+'_set.png'), bbox_inches='tight')
-        print 'ced plot path:', os.path.join(log_path,'nme_ced_on_'+test_data+'_set.png')
+        print ('ced plot path: ' + os.path.join(log_path,'nme_ced_on_'+test_data+'_set.png'))
