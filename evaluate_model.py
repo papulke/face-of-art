@@ -3,13 +3,13 @@ from evaluation_functions import *
 flags = tf.app.flags
 
 data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
-model_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/tests/primary/old/no_flip/basic/' \
+model_path = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/tests/primary/old/no_flip/basic/' \
             'tests_lr_primary_basic_no_flip/0.01/model/deep_heatmaps-80000'
 
 # define paths
 flags.DEFINE_string('img_dir', data_dir, 'data directory')
 flags.DEFINE_string('test_data', 'test', 'test set to use full/common/challenging/test/art')
-flags.DEFINE_string('model_dir', model_dir, 'model directory')
+flags.DEFINE_string('model_path', model_path, 'model path')
 
 # parameters used to train network
 flags.DEFINE_string('network_type', 'Primary', 'network architecture Fusion/Primary')
@@ -40,13 +40,13 @@ def main(_):
         tf.gfile.MakeDirs(FLAGS.log_path)
 
     err = evaluate_heatmap_network(
-        model_path=FLAGS.model_dir, network_type=FLAGS.network_type, img_path=FLAGS.img_dir,
+        model_path=FLAGS.model_path, network_type=FLAGS.network_type, img_path=FLAGS.img_dir,
         test_data=FLAGS.test_data, batch_size=FLAGS.batch_size, image_size=FLAGS.image_size, margin=FLAGS.margin,
         bb_type=FLAGS.bb_type, c_dim=FLAGS.c_dim, scale=FLAGS.scale, num_landmarks=FLAGS.num_landmarks,
         debug=FLAGS.debug, debug_data_size=FLAGS.debug_data_size)
 
     print_nme_statistics(
-        errors=err, model_path=FLAGS.model_dir, network_type=FLAGS.network_type, test_data=FLAGS.test_data,
+        errors=err, model_path=FLAGS.model_path, network_type=FLAGS.network_type, test_data=FLAGS.test_data,
         max_error=FLAGS.max_error, save_log=FLAGS.save_log, log_path=FLAGS.log_path)
 
 
