@@ -166,7 +166,7 @@ You can add the following flags:
 #### define paths
 * img_dir - data directory (containing subdirectories of datasets and BBs)
 * test_data - test set to use full/common/challenging/test
-* pre_train_path - pretrained model path
+* model_dir - pretrained model path
 
 #### parameters used to train network
 * network_type - network architecture 'Fusion'/'Primary'
@@ -207,7 +207,7 @@ in addition, AUC measures and failure rates will be printed to screen.
 
 example:
 ```
-python evaluate_and_compare_multiple_models.py --pre_train_models_dir='models_to_compare' \
+python evaluate_and_compare_multiple_models.py --models_dir='models_to_compare' \
 --test_data='test'  --max_error=0.08 --log_path='logs/nme_statistics'
 ```
 
