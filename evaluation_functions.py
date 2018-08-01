@@ -7,6 +7,8 @@ from logging_functions import *
 from data_loading_functions import *
 from time import time
 import sys
+from PyQt5 import QtWidgets
+qapp=QtWidgets.QApplication([''])
 
 
 def load_menpo_test_list(img_dir, test_data='full', image_size=256, margin=0.25, bb_type='gt'):
@@ -219,12 +221,12 @@ def evaluate_heatmap_network(model_path, network_type, img_path, test_data, batc
                                      bb_type='gt', c_dim=3, scale=1, num_landmarks=68, debug=False,
                                      debug_data_size=20):
 
-    if network_type == 'Fusion':
+    if network_type.lower() == 'fusion':
         return evaluate_heatmap_fusion_network(
             model_path=model_path, img_path=img_path, test_data=test_data, batch_size=batch_size, image_size=image_size,
             margin=margin, bb_type=bb_type, c_dim=c_dim, scale=scale, num_landmarks=num_landmarks, debug=debug,
             debug_data_size=debug_data_size)
-    elif network_type == 'Primary':
+    elif network_type.lower() == 'primary':
         return evaluate_heatmap_primary_network(
             model_path=model_path, img_path=img_path, test_data=test_data, batch_size=batch_size, image_size=image_size,
             margin=margin, bb_type=bb_type, c_dim=c_dim, scale=scale, num_landmarks=num_landmarks, debug=debug,
@@ -273,9 +275,10 @@ def print_nme_statistics(
             f.write(b"\n\n* Normalized mean error (percentage of eye distance): %.2f" % (100 * np.mean(errors)))
             f.write(b"\n\n* AUC @ %.2f: %.2f" % (max_error, 100 * auc))
             f.write(("\n\n* failure rate @ %.2f: %.2f" % (max_error, 100 * failures) + '%').encode())
-
-        plt.savefig(os.path.join(log_path, network_type.lower() + '_nme_ced_on_' + test_data + '_set.png'),
-                    bbox_inches='tight')
+        if plot_ced:
+            plt.savefig(os.path.join(log_path, network_type.lower() + '_nme_ced_on_' + test_data + '_set.png'),
+                        bbox_inches='tight')
+            plt.close()
 
         print ('\nlog path: ' + log_path)
 
@@ -292,3 +295,4 @@ def print_ced_compare_methods(method_errors,method_names,test_data,log_path='', 
     if save_log:
         plt.savefig(os.path.join(log_path,'nme_ced_on_'+test_data+'_set.png'), bbox_inches='tight')
         print ('ced plot path: ' + os.path.join(log_path,'nme_ced_on_'+test_data+'_set.png'))
+        plt.close()

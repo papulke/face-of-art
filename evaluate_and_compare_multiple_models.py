@@ -9,7 +9,7 @@ models_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/ect_like/sa
 # define paths
 flags.DEFINE_string('img_dir', data_dir, 'data directory')
 flags.DEFINE_string('test_data', 'test', 'test set to use full/common/challenging/test/art')
-flags.DEFINE_string('pre_train_models_dir', models_dir, 'directory containing multiple models to evaluate and compare')
+flags.DEFINE_string('models_dir', models_dir, 'directory containing multiple models to evaluate and compare')
 
 # parameters used to train network
 flags.DEFINE_integer('image_size', 256, 'image size')
@@ -38,7 +38,7 @@ def main(_):
     if not tf.gfile.Exists(FLAGS.log_path):
         tf.gfile.MakeDirs(FLAGS.log_path)
 
-    test_model_dirs = glob(os.path.join(FLAGS.pre_train_models_dir, '*'))
+    test_model_dirs = glob(os.path.join(FLAGS.models_dir, '*'))
 
     model_names = []
     model_errors = []

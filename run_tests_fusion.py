@@ -116,7 +116,7 @@ def main(_):
             p_texture=FLAGS.p_texture, augment_geom=FLAGS.augment_geom, p_geom=FLAGS.p_geom, artistic_step=FLAGS.artistic_step,
             artistic_start=FLAGS.artistic_start, output_dir=FLAGS.output_dir, save_model_path=save_model_path,
             save_sample_path=save_sample_path, save_log_path=save_log_path, test_model_path=FLAGS.test_model_path,
-            pre_train_path=os.path.join(test_dir,FLAGS.pre_train_model_name), load_pretrain=FLAGS.load_pretrain,
+            pre_train_path=os.path.join(save_model_path, FLAGS.pre_train_model_name), load_pretrain=FLAGS.load_pretrain,
             load_primary_only=FLAGS.load_primary_only, img_path=FLAGS.img_path, test_data=FLAGS.test_data,
             valid_data=FLAGS.valid_data, valid_size=FLAGS.valid_size, log_valid_every=FLAGS.log_valid_every,
             train_crop_dir=FLAGS.train_crop_dir, img_dir_ns=FLAGS.img_dir_ns, print_every=FLAGS.print_every,
