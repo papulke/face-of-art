@@ -166,7 +166,7 @@ You can add the following flags:
 #### define paths
 * img_dir - data directory (containing subdirectories of datasets and BBs)
 * test_data - test set to use full/common/challenging/test
-* model_dir - pretrained model path
+* model_path - pretrained model path
 
 #### parameters used to train network
 * network_type - network architecture 'Fusion'/'Primary'
@@ -189,7 +189,7 @@ You can add the following flags:
 
 example:
 ```
-python evaluate_model.py --pre_train_path='model/deep_heatmaps-100000' --test_data='full' \
+python evaluate_model.py --model_path='model/deep_heatmaps-100000' --test_data='full' \
 --network_type='Fusion' --max_error=0.07
 ```
 
