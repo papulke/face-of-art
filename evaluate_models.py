@@ -4,14 +4,14 @@ from glob import glob
 flags = tf.app.flags
 
 data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
-test_dir = 'tests_fusion'
+models_dir = 'tests_fusion'
 pre_train_model_name = 'deep_heatmaps-50000'
 datasets=['full','common','challenging','test']
 
 # define paths
 flags.DEFINE_string('img_dir', data_dir, 'data directory')
-flags.DEFINE_string('test_dir', test_dir, 'directory containing multiple models to evaluate')
-flags.DEFINE_string('model_name', pre_train_model_name, 'tests directory')
+flags.DEFINE_string('models_dir', models_dir, 'directory containing multiple models to evaluate')
+flags.DEFINE_string('model_name', pre_train_model_name, "model name. e.g: 'deep_heatmaps-50000'")
 
 
 # parameters used to train network
@@ -37,7 +37,7 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
-    model_dirs = glob(os.path.join(FLAGS.test_dir,'*'))
+    model_dirs = glob(os.path.join(FLAGS.models_dir,'*'))
 
     for test_data in datasets:
         model_errors=[]
@@ -72,7 +72,7 @@ def main(_):
 
         print_ced_compare_methods(
             method_errors=tuple(model_errors), method_names=tuple(model_names), test_data=test_data,
-            log_path=FLAGS.test_dir, save_log=FLAGS.save_log)
+            log_path=FLAGS.models_dir, save_log=FLAGS.save_log)
 
 
 if __name__ == '__main__':
