@@ -16,7 +16,7 @@ class DeepHeatmapsModel(object):
     """facial landmark localization Network"""
 
     def __init__(self, mode='TRAIN', train_iter=100000, batch_size=10, learning_rate=1e-3, adam_optimizer=True,
-                 momentum=0.95, step=100000, gamma=0.1, weight_initializer='xavier', weight_initializer_std=0.01,
+                 momentum=0.95, step=100000, gamma=0.1, reg=0, weight_initializer='xavier', weight_initializer_std=0.01,
                  bias_initializer=0.0, image_size=256, c_dim=3, num_landmarks=68, sigma=1.5, scale=1, margin=0.25,
                  bb_type='gt', approx_maps=True, win_mult=3.33335, augment_basic=True, basic_start=0,
                  augment_texture=False, p_texture=0., augment_geom=False, p_geom=0., artistic_step=-1, artistic_start=0,
@@ -79,6 +79,7 @@ class DeepHeatmapsModel(object):
         self.momentum = momentum
         self.step = step  # for lr decay
         self.gamma = gamma  # for lr decay
+        self.reg = reg  # weight decay scale
 
         self.weight_initializer = weight_initializer  # random_normal or xavier
         self.weight_initializer_std = weight_initializer_std
@@ -302,6 +303,8 @@ class DeepHeatmapsModel(object):
         if self.mode is 'TRAIN':
             primary_maps_diff = self.pred_hm_p-self.heatmaps_small
             self.total_loss = 1000.*tf.reduce_mean(tf.square(primary_maps_diff))
+            self.total_loss += self.reg * tf.add_n(
+                [tf.nn.l2_loss(v) for v in tf.trainable_variables() if 'bias' not in v.name])
 
             if self.compute_nme:
                 self.nme_loss = tf.reduce_mean(l2_loss_norm_eyes(self.train_pred_lms_small,self.train_lms_small))
