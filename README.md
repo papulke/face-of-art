@@ -119,6 +119,7 @@ You can add the following flags:
 * momentum - optimizer momentum (relevant only if adam_optimizer==False)
 * step - step for lr decay
 * gamma - exponential base for lr decay
+* reg - scalar multiplier for weight decay (0 to disable)
 * weight_initializer - weight initializer: 'random_normal' / 'xavier'
 * weight_initializer_std - std for random_normal weight initializer
 * bias_initializer - constant value for bias initializer
