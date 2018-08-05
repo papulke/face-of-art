@@ -220,6 +220,9 @@ def load_menpo_image_list(
     def augment_menpo_img_geom_rand(img):
         return augment_menpo_img_geom(img, p_geom=1. * (np.random.rand() < p_geom))
 
+    def resize_menpo_img(img):
+        return img.resize([image_size, image_size])
+
     if mode is 'TRAIN':
         if train_crop_dir is None:
             img_set_dir = os.path.join(img_dir, 'training_set')
@@ -249,6 +252,7 @@ def load_menpo_image_list(
                 out_image_list = out_image_list.map(crop_to_face_image_init)
         else:
             out_image_list = mio.import_images(img_set_dir, verbose=verbose)
+            out_image_list = out_image_list.map(resize_menpo_img)
 
     return out_image_list
 

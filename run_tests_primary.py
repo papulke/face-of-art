@@ -55,6 +55,7 @@ flags.DEFINE_bool('adam_optimizer', True, "use adam optimizer (if False momentum
 flags.DEFINE_float('momentum', 0.95, "optimizer momentum (if adam_optimizer==False)")
 flags.DEFINE_integer('step', 100000, 'step for lr decay')
 flags.DEFINE_float('gamma', 0.1, 'exponential base for lr decay')
+flags.DEFINE_float('reg', 0.0005, 'scalar multiplier for weight decay (0 to disable)')
 flags.DEFINE_string('weight_initializer','xavier', 'weight initializer: random_normal / xavier')
 flags.DEFINE_float('weight_initializer_std', 0.01, 'std for random_normal weight initializer')
 flags.DEFINE_float('bias_initializer', 0.0, 'constant value for bias initializer')
@@ -104,7 +105,7 @@ def main(_):
         model = DeepHeatmapsModel(
             mode='TRAIN', train_iter=FLAGS.train_iter, batch_size=FLAGS.batch_size, learning_rate=param,
             adam_optimizer=FLAGS.adam_optimizer, momentum=FLAGS.momentum, step=FLAGS.step, gamma=FLAGS.gamma,
-            weight_initializer=FLAGS.weight_initializer, weight_initializer_std=FLAGS.weight_initializer_std,
+            reg=FLAGS.reg, weight_initializer=FLAGS.weight_initializer, weight_initializer_std=FLAGS.weight_initializer_std,
             bias_initializer=FLAGS.bias_initializer, image_size=FLAGS.image_size, c_dim=FLAGS.c_dim,
             num_landmarks=FLAGS.num_landmarks, sigma=FLAGS.sigma, scale=FLAGS.scale, margin=FLAGS.margin,
             bb_type=FLAGS.bb_type, approx_maps=FLAGS.approx_maps, win_mult=FLAGS.win_mult,
