@@ -32,6 +32,8 @@ flags.DEFINE_string('test_data', 'full', 'test set to use: full/common/challengi
 flags.DEFINE_string('valid_data', 'full', 'validation set to use: full/common/challenging/test/art')
 flags.DEFINE_string('train_crop_dir', 'crop_gt_margin_0.25',"directory of train images cropped to bb (+margin)")
 flags.DEFINE_string('img_dir_ns', 'crop_gt_margin_0.25_ns', "dir of train imgs cropped to bb + style transfer")
+flags.DEFINE_string('epoch_data_dir', 'epoch_data', "directory containing pre-augmented data for each epoch")
+flags.DEFINE_bool('use_epoch_data', False, "use pre-augmented data")
 
 # pretrain parameters (for fine-tuning / resume training)
 flags.DEFINE_string('pre_train_path', pre_train_path, 'pretrained model path')
@@ -108,7 +110,7 @@ def main(_):
         log_valid_every=FLAGS.log_valid_every, train_crop_dir=FLAGS.train_crop_dir, img_dir_ns=FLAGS.img_dir_ns,
         print_every=FLAGS.print_every, save_every=FLAGS.save_every, sample_every=FLAGS.sample_every,
         sample_grid=FLAGS.sample_grid, sample_to_log=FLAGS.sample_to_log, debug_data_size=FLAGS.debug_data_size,
-        debug=FLAGS.debug)
+        debug=FLAGS.debug, use_epoch_data=FLAGS.use_epoch_data, epoch_data_dir=FLAGS.epoch_data_dir)
 
     if FLAGS.mode == 'TRAIN':
         model.train()

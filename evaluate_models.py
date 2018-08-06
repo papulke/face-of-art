@@ -48,7 +48,7 @@ def main(_):
             # create directories if not exist
             log_path = os.path.join(model_dir,'logs/nme_statistics')
             if not os.path.exists(os.path.join(model_dir,'logs')):
-                os.mkdir(os.path.exists(os.path.join(model_dir,'logs')))
+                os.mkdir(os.path.join(model_dir,'logs'))
             if not os.path.exists(log_path):
                 os.mkdir(log_path)
 
