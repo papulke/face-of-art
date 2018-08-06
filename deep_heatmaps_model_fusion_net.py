@@ -26,7 +26,7 @@ class DeepHeatmapsModel(object):
                  img_path='data', test_data='full', valid_data='full', valid_size=0, log_valid_every=5,
                  train_crop_dir='crop_gt_margin_0.25', img_dir_ns='crop_gt_margin_0.25_ns',
                  print_every=100, save_every=5000, sample_every=5000, sample_grid=9, sample_to_log=True,
-                 debug_data_size=20, debug=False, menpo_verbose=True):
+                 debug_data_size=20, debug=False, epoch_data_dir='epoch_data', use_epoch_data=False, menpo_verbose=True):
 
         # define some extra parameters
 
@@ -57,6 +57,8 @@ class DeepHeatmapsModel(object):
 
         self.debug = debug
         self.debug_data_size = debug_data_size
+        self.use_epoch_data = use_epoch_data
+        self.epoch_data_dir = epoch_data_dir
 
         self.load_pretrain = load_pretrain
         self.load_primary_only = load_primary_only
@@ -113,13 +115,21 @@ class DeepHeatmapsModel(object):
         # load image, bb and landmark data using menpo
         self.bb_dir = os.path.join(img_path, 'Bounding_Boxes')
         self.bb_dictionary = load_bb_dictionary(self.bb_dir, mode, test_data=self.test_data)
-        self.img_menpo_list = load_menpo_image_list(
-            img_path, train_crop_dir, self.img_dir_ns, mode, bb_dictionary=self.bb_dictionary,
-            image_size=self.image_size,
-            margin=margin, bb_type=bb_type, test_data=self.test_data,
-            augment_basic=(augment_basic and basic_start == 0),
-            augment_texture=(augment_texture and artistic_start == 0 and p_texture > 0.), p_texture=p_texture,
-            augment_geom=(augment_geom and artistic_start == 0 and p_geom > 0.), p_geom=p_geom, verbose=menpo_verbose)
+
+        if self.use_epoch_data:
+            epoch_0 = os.path.join(self.epoch_data_dir, '0')
+            self.img_menpo_list = load_menpo_image_list(
+                img_path, train_crop_dir=epoch_0, img_dir_ns=None, mode=mode, bb_dictionary=self.bb_dictionary,
+                image_size=self.image_size, test_data=self.test_data, augment_basic=False, augment_texture=False,
+                augment_geom=False, verbose=menpo_verbose)
+        else:
+            self.img_menpo_list = load_menpo_image_list(
+                img_path, train_crop_dir, self.img_dir_ns, mode, bb_dictionary=self.bb_dictionary,
+                image_size=self.image_size,
+                margin=margin, bb_type=bb_type, test_data=self.test_data,
+                augment_basic=(augment_basic and basic_start == 0),
+                augment_texture=(augment_texture and artistic_start == 0 and p_texture > 0.), p_texture=p_texture,
+                augment_geom=(augment_geom and artistic_start == 0 and p_geom > 0.), p_geom=p_geom, verbose=menpo_verbose)
 
         if mode == 'TRAIN':
 
@@ -751,6 +761,12 @@ class DeepHeatmapsModel(object):
                     img_inds = self.epoch_inds_shuffle[epoch, :]  # get next shuffled image inds
                     artistic_reload = True
                     log_valid = True
+                    if self.use_epoch_data:
+                        epoch_dir = os.path.join(self.epoch_data_dir, str(epoch))
+                        self.img_menpo_list = load_menpo_image_list(
+                            self.img_path, train_crop_dir=epoch_dir, img_dir_ns=None, mode=self.mode,
+                            bb_dictionary=self.bb_dictionary, image_size=self.image_size, test_data=self.test_data,
+                            augment_basic=False, augment_texture=False, augment_geom=False)
 
                 # add basic augmentation (if basic_start > 0 and augment_basic is True)
                 if basic_reload and (epoch >= self.basic_start) and self.basic_start > 0 and self.augment_basic:
