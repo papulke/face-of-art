@@ -92,6 +92,9 @@ You can add the following flags:
 * valid_data - validation set to use: full/common/challenging/test
 * train_crop_dir - directory of train images cropped to bb (+margin)
 * img_dir_ns - dir of train imgs cropped to bb + style transfer
+* epoch_data_dir - directory containing pre-augmented data for each epoch
+* use_epoch_data - use pre-augmented data (bool)
+
 
 #### pretrain parameters (for fine-tuning / resume training)
 * pre_train_path - pretrained model path
