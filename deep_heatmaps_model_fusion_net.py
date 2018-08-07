@@ -401,6 +401,8 @@ class DeepHeatmapsModel(object):
             self.l2_primary = tf.reduce_mean(tf.square(primary_maps_diff))
             self.l2_fusion = tf.reduce_mean(tf.square(fusion_maps_diff))
             self.total_loss = 1000.*(self.l_weight_primary * self.l2_primary + self.l_weight_fusion * self.l2_fusion)
+
+            # add weight decay
             self.total_loss += self.reg * tf.add_n(
                 [tf.nn.l2_loss(v) for v in tf.trainable_variables() if 'bias' not in v.name])
 

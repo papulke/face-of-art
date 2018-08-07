@@ -61,7 +61,7 @@ flags.DEFINE_bool('adam_optimizer', True, "use adam optimizer (if False momentum
 flags.DEFINE_float('momentum', 0.95, "optimizer momentum (if adam_optimizer==False)")
 flags.DEFINE_integer('step', 100000, 'step for lr decay')
 flags.DEFINE_float('gamma', 0.1, 'exponential base for lr decay')
-flags.DEFINE_float('reg', 0.0005, 'scalar multiplier for weight decay (0 to disable)')
+flags.DEFINE_float('reg', 0, 'scalar multiplier for weight decay (0 to disable)')
 flags.DEFINE_string('weight_initializer','xavier', 'weight initializer: random_normal / xavier')
 flags.DEFINE_float('weight_initializer_std', 0.01, 'std for random_normal weight initializer')
 flags.DEFINE_float('bias_initializer', 0.0, 'constant value for bias initializer')
