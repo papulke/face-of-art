@@ -203,7 +203,7 @@ def warp_face_image_tps(img, new_shape):
         img_warp.landmarks['PTS'] = new_shape
         return img_warp
     except np.linalg.linalg.LinAlgError as err:
-        print ('Error:'+str(err)+'\n Using original landmarks')
+        print ('Error:'+str(err)+'\nUsing original landmarks for:\n'+str(img.path))
         return img
 
 
