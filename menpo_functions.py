@@ -198,9 +198,13 @@ def augment_menpo_img_geom(img, p_geom=0):
 
 def warp_face_image_tps(img, new_shape):
     tps = ThinPlateSplines(new_shape, img.landmarks['PTS'])
-    img_warp = img.warp_to_shape(img.shape, tps)
-    img_warp.landmarks['PTS'] = new_shape
-    return img_warp
+    try:
+        img_warp = img.warp_to_shape(img.shape, tps)
+        img_warp.landmarks['PTS'] = new_shape
+        return img_warp
+    except np.linalg.linalg.LinAlgError as err:
+        print ('Error:'+str(err)+'\n Using original landmarks')
+        return img
 
 
 def load_menpo_image_list(
