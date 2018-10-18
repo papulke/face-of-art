@@ -9,7 +9,7 @@ import sys
 
 # parameter for calculating number of epochs
 num_train_images = 3148  # number of training images
-train_iter = 3000  # number of training iterations
+train_iter = 100000  # number of training iterations
 batch_size = 6  # batch size in training
 num_epochs = int(np.ceil((1. * train_iter) / (1. * num_train_images / batch_size)))+1
 
@@ -78,8 +78,8 @@ np.random.seed(random_seed)
 ns_inds = np.arange(num_augs)
 
 for i in range(num_epochs):
-    print ('saving augmented images of epoch %d/%d' % (i + 1, num_epochs))
-    if not os.path.exists(os.path.join(save_aug_path, str(i))):
+    print ('saving augmented images of epoch %d/%d' % (i, num_epochs-1))
+    if not os.path.exists(os.path.join(save_aug_path, str(i))) and i > min_epoch_to_save - 1:
         os.mkdir(os.path.join(save_aug_path, str(i)))
 
     if i % num_augs == 0:
