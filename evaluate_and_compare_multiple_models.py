@@ -38,14 +38,14 @@ def main(_):
     if not tf.gfile.Exists(FLAGS.log_path):
         tf.gfile.MakeDirs(FLAGS.log_path)
 
-    test_model_dirs = glob(os.path.join(FLAGS.models_dir, '*'))
+    test_model_dirs = glob(os.path.join(FLAGS.models_dir, '*/'))
 
     model_names = []
     model_errors = []
 
     for i, model_dir in enumerate(test_model_dirs):
 
-        model_name = model_dir.split('/')[-1]
+        model_name = model_dir.split('/')[-2]
 
         if 'primary' in model_name.lower():
             net_type = 'Primary'
