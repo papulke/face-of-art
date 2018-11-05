@@ -37,7 +37,7 @@ FLAGS = flags.FLAGS
 
 
 def main(_):
-    model_dirs = glob(os.path.join(FLAGS.models_dir,'*'))
+    model_dirs = glob(os.path.join(FLAGS.models_dir,'*/'))
 
     for test_data in datasets:
         model_errors=[]
@@ -52,7 +52,7 @@ def main(_):
             if not os.path.exists(log_path):
                 os.mkdir(log_path)
 
-            model_name = model_dir.split('/')[-1]
+            model_name = model_dir.split('/')[-2]
 
             tf.reset_default_graph()  # reset graph
 
