@@ -3,8 +3,7 @@ from deep_heatmaps_model_fusion_net import DeepHeatmapsModel
 import os
 
 
-#data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
-data_dir = '../dataset/'
+data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
 pre_train_path = 'saved_models/0.01/model/deep_heatmaps-50000'
 output_dir = os.getcwd()
 

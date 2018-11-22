@@ -2,12 +2,8 @@ import tensorflow as tf
 import numpy as np
 
 
-def fc(input, out_size, reuse, var_scope='layer'):
-    with tf.variable_scope(var_scope):
-        in_size = input.shape[1] * input.shape[2] * input.shape[3]
-        input = tf.reshape(input, [-1, in_size])
-        return tf.contrib.layers.fully_connected(input, num_outputs=out_size, activation_fn=None,
-                                                 scope=var_scope, reuse=reuse)
+def fc(input, out_size, var_scope='layer'):
+    return tf.contrib.layers.fully_connected(input, num_outputs=out_size, activation_fn=None, var_scope=var_scope)
 
 
 def conv_relu_pool(input, conv_ker, conv_filters, conv_stride=1, conv_padding='SAME',

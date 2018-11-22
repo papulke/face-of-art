@@ -294,9 +294,9 @@ class DeepHeatmapsModel(object):
                     """
                     take this layer as feature map -> insert to STN
                     """
-                    l_stn_0_0 = conv_relu(l_fsn_0, conv_ker=5, conv_filters=20, reuse=reuse, var_scope='conv_stn_0_0')
-                    l_stn_0_1 = conv_relu(l_stn_0_0, conv_ker=5, conv_filters=20, reuse=reuse, var_scope='conv_stn_0_1')
-                    l_stn_0_2 = fc(l_stn_0_1, out_size=6, reuse=reuse, var_scope='conv_stn_0_2')
+                    l_stn_0_0 = conv_relu(l_fsn_0, conv_ker=5, conv_filters=20, var_scope='conv_stn_0_0')
+                    l_stn_0_1 = conv_relu(l_stn_0_0, conv_ker=5, conv_filters=20, var_scope='conv_stn_0_1')
+                    l_stn_0_2 = fc(l_stn_0_1, out_size=6, var_scope='conv_stn_0_2')
 
                     l_fsn_0_transformed = stn.spatial_transformer_network(l_fsn_0, theta=l_stn_0_2)
 
