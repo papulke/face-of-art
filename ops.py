@@ -2,10 +2,6 @@ import tensorflow as tf
 import numpy as np
 
 
-def fc(input, out_size, var_scope='layer'):
-    return tf.contrib.layers.fully_connected(input, num_outputs=out_size, activation_fn=None, var_scope=var_scope)
-
-
 def conv_relu_pool(input, conv_ker, conv_filters, conv_stride=1, conv_padding='SAME',
                    conv_ker_init=tf.random_normal_initializer(0.01), conv_bias_init=tf.zeros_initializer(),
                    pool_size=2, pool_stride=2, pool_padding='same', var_scope='layer', reuse=None):

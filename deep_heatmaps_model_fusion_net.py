@@ -9,7 +9,6 @@ from tensorflow import contrib
 from menpo_functions import *
 from logging_functions import *
 from data_loading_functions import *
-import transformer as stn
 
 
 class DeepHeatmapsModel(object):
@@ -291,16 +290,7 @@ class DeepHeatmapsModel(object):
 
                     l_fsn_0 = tf.concat([l3, l7], 3, name='conv_3_7_fsn')
 
-                    """
-                    take this layer as feature map -> insert to STN
-                    """
-                    l_stn_0_0 = conv_relu(l_fsn_0, conv_ker=5, conv_filters=20, var_scope='conv_stn_0_0')
-                    l_stn_0_1 = conv_relu(l_stn_0_0, conv_ker=5, conv_filters=20, var_scope='conv_stn_0_1')
-                    l_stn_0_2 = fc(l_stn_0_1, out_size=6, var_scope='conv_stn_0_2')
-
-                    l_fsn_0_transformed = stn.spatial_transformer_network(l_fsn_0, theta=l_stn_0_2)
-
-                    l_fsn_1_1 = conv_relu(l_fsn_0_transformed, 3, 64, conv_dilation=1, conv_ker_init=weight_initializer,
+                    l_fsn_1_1 = conv_relu(l_fsn_0, 3, 64, conv_dilation=1, conv_ker_init=weight_initializer,
                                           conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_1_1')
                     l_fsn_1_2 = conv_relu(l_fsn_0, 3, 64, conv_dilation=2, conv_ker_init=weight_initializer,
                                           conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_1_2')
