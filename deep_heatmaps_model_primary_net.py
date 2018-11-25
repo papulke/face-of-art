@@ -32,6 +32,7 @@ class DeepHeatmapsModel(object):
         self.log_histograms = False  # save weight + gradient histogram to log
         self.save_valid_images = True  # sample heat maps of validation images
         self.log_artistic_augmentation_probs = False  # save p_texture & p_geom to log
+        self.sample_per_channel = False  # sample heatmaps separately for each landmark
         self.approx_maps_gpu = False  # create heat-maps on gpu. NOT RECOMMENDED. TODO: REMOVE
 
         # for fine-tuning, choose reset_training_op==True. when resuming training, reset_training_op==False
@@ -210,10 +211,11 @@ class DeepHeatmapsModel(object):
                 row = int(np.sqrt(self.sample_grid))
                 self.log_image_map = tf.placeholder(
                     tf.uint8, [None,row * int(self.image_size/4), 3 * row *int(self.image_size/4), self.c_dim], 'sample_img_map')
-                row = np.ceil(np.sqrt(self.num_landmarks)).astype(np.int64)
-                self.log_map_channels = tf.placeholder(
-                    tf.uint8, [None, row * int(self.image_size/4), 2 * row * int(self.image_size/4), self.c_dim],
-                    'sample_map_channels')
+                if self.sample_per_channel:
+                    row = np.ceil(np.sqrt(self.num_landmarks)).astype(np.int64)
+                    self.log_map_channels = tf.placeholder(
+                        tf.uint8, [None, row * int(self.image_size/4), 2 * row * int(self.image_size/4), self.c_dim],
+                        'sample_map_channels')
 
     def heatmaps_network(self, input_images, reuse=None, name='pred_heatmaps'):
 
@@ -272,7 +274,7 @@ class DeepHeatmapsModel(object):
     def build_model(self):
         self.pred_hm_p = self.heatmaps_network(self.images,name='heatmaps_prediction')
 
-    def build_hm_generator(self):
+    def build_hm_generator(self):  # TODO: remove
         # generate heat-maps using:
         # a sparse base (matrix of zeros with 1's in landmark locations) and convolving with a gaussian filter
         print ("*** using convolution to create heat-maps. use this option only with GPU support ***")
@@ -459,12 +461,18 @@ class DeepHeatmapsModel(object):
 
         if self.sample_to_log:
             img_map_summary =tf.summary.image('compare_map_to_gt',self.log_image_map)
-            map_channels_summary = tf.summary.image('compare_map_channels_to_gt', self.log_map_channels)
-            self.img_summary = tf.summary.merge([img_map_summary, map_channels_summary])
+            if self.sample_per_channel:
+                map_channels_summary = tf.summary.image('compare_map_channels_to_gt', self.log_map_channels)
+                self.img_summary = tf.summary.merge([img_map_summary, map_channels_summary])
+            else:
+                self.img_summary = img_map_summary
             if self.valid_size >= self.sample_grid:
                 img_map_summary_valid = tf.summary.image('compare_map_to_gt_valid', self.log_image_map)
-                map_channels_summary_valid = tf.summary.image('compare_map_channels_to_gt_valid', self.log_map_channels)
-                self.img_summary_valid = tf.summary.merge([img_map_summary_valid, map_channels_summary_valid])
+                if self.sample_per_channel:
+                    map_channels_summary_valid = tf.summary.image('compare_map_channels_to_gt_valid', self.log_map_channels)
+                    self.img_summary_valid = tf.summary.merge([img_map_summary_valid, map_channels_summary_valid])
+                else:
+                    self.img_summary_valid = img_map_summary_valid
 
     def eval(self):
 
@@ -474,12 +482,12 @@ class DeepHeatmapsModel(object):
         self.create_loss_ops()
 
         if self.debug:
-            self.img_menpo_list = self.img_menpo_list[:self.debug_data_size]
+            self.img_menpo_list = self.img_menpo_list[:np.min([self.debug_data_size, len(self.img_menpo_list)])]
 
         num_images = len(self.img_menpo_list)
         img_inds = np.arange(num_images)
 
-        sample_iter = int(1. * num_images / self.sample_grid)
+        sample_iter = np.ceil(1. * num_images / self.sample_grid).astype('int')
 
         with tf.Session(config=self.config) as sess:
 
@@ -500,9 +508,9 @@ class DeepHeatmapsModel(object):
 
                     batch_maps_small_pred = sess.run(self.pred_hm_p, {self.images: batch_images})
 
-                    batch_maps_gt = batch_maps_small_pred.copy()
+                    batch_maps_gt = None
                 else:
-                    # TODO: add option for approx cpu/gpu + allocate once
+                    # TODO: add option for approx maps + allocate once
                     batch_images, batch_maps_gt, _ = \
                         load_images_landmarks_maps(
                             self.img_menpo_list, batch_inds, primary=True, image_size=self.image_size,
@@ -515,21 +523,23 @@ class DeepHeatmapsModel(object):
                     self.save_sample_path, model_name +'-'+ self.test_data+'-sample-%d-to-%d-1.png' % (
                         i * self.sample_grid, (i + 1) * self.sample_grid))
 
-                sample_path_channels = os.path.join(
-                    self.save_sample_path, model_name +'-'+ self.test_data+ '-sample-%d-to-%d-3.png' % (
-                        i * self.sample_grid, (i + 1) * self.sample_grid))
-
                 merged_img = merge_images_landmarks_maps_gt(
                     batch_images.copy(), batch_maps_small_pred, batch_maps_gt, image_size=self.image_size,
                     num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale, circle_size=0,
-                    test_data=self.test_data, fast=self.fast_img_gen)
-
-                map_per_channel = map_comapre_channels(
-                    batch_images.copy(), batch_maps_small_pred,batch_maps_gt, image_size=int(self.image_size/4),
-                    num_landmarks=self.num_landmarks, scale=self.scale, test_data=self.test_data)
+                    fast=self.fast_img_gen)
 
                 scipy.misc.imsave(sample_path_imgs, merged_img)
-                scipy.misc.imsave(sample_path_channels, map_per_channel)
+
+                if self.sample_per_channel:
+                    map_per_channel = map_comapre_channels(
+                        batch_images.copy(), batch_maps_small_pred,batch_maps_gt, image_size=int(self.image_size/4),
+                        num_landmarks=self.num_landmarks, scale=self.scale)
+
+                    sample_path_channels = os.path.join(
+                        self.save_sample_path, model_name + '-' + self.test_data + '-sample-%d-to-%d-3.png' % (
+                            i * self.sample_grid, (i + 1) * self.sample_grid))
+
+                    scipy.misc.imsave(sample_path_channels, map_per_channel)
 
                 print ('saved %s' % sample_path_imgs)
 
@@ -563,6 +573,7 @@ class DeepHeatmapsModel(object):
 
         train_op = optimizer.minimize(self.total_loss,global_step=global_step)
 
+        # TODO: remove
         if self.approx_maps_gpu:  # create heat-maps using tf convolution. use only with GPU support!
             self.build_hm_generator()
 
@@ -605,6 +616,7 @@ class DeepHeatmapsModel(object):
             artistic_reload = False
             basic_reload = True
             log_valid = True
+            log_valid_images = True
 
             if self.allocate_once:
                 batch_images = np.zeros([self.batch_size, self.image_size, self.image_size, self.c_dim]).astype('float32')
@@ -629,6 +641,7 @@ class DeepHeatmapsModel(object):
                     img_inds = self.epoch_inds_shuffle[epoch, :]  # get next shuffled image inds
                     artistic_reload = True
                     log_valid = True
+                    log_valid_images = True
                     if self.use_epoch_data:
                         epoch_dir = os.path.join(self.epoch_data_dir, str(epoch))
                         self.img_menpo_list = load_menpo_image_list(
@@ -678,7 +691,7 @@ class DeepHeatmapsModel(object):
                 # get batch images
                 batch_inds = img_inds[j * self.batch_size:(j + 1) * self.batch_size]
 
-                if self.approx_maps_gpu:
+                if self.approx_maps_gpu:  # TODO: remove
                     if self.allocate_once:
                         load_images_landmarks_alloc_once(
                             self.img_menpo_list, batch_inds, images=batch_images, landmarks_small=batch_lms_small,
@@ -820,18 +833,26 @@ class DeepHeatmapsModel(object):
                         num_landmarks=self.num_landmarks, num_samples=self.sample_grid, scale=self.scale,
                         circle_size=0, fast=self.fast_img_gen)
 
-                    map_per_channel = map_comapre_channels(
-                        batch_images.copy(), batch_maps_small_pred,batch_maps_small,
-                        image_size=int(self.image_size/4), num_landmarks=self.num_landmarks, scale=self.scale)
+                    if self.sample_per_channel:
+                        map_per_channel = map_comapre_channels(
+                            batch_images.copy(), batch_maps_small_pred,batch_maps_small,
+                            image_size=int(self.image_size/4), num_landmarks=self.num_landmarks, scale=self.scale)
 
                     if self.sample_to_log:
-                        summary_img = sess.run(
-                            self.img_summary, {self.log_image_map: np.expand_dims(merged_img, 0),
-                                               self.log_map_channels: np.expand_dims(map_per_channel, 0)})
+                        if self.sample_per_channel:
+                            summary_img = sess.run(
+                                self.img_summary, {self.log_image_map: np.expand_dims(merged_img, 0),
+                                                   self.log_map_channels: np.expand_dims(map_per_channel, 0)})
+                        else:
+                            summary_img = sess.run(
+                                self.img_summary, {self.log_image_map: np.expand_dims(merged_img, 0)})
 
                         summary_writer.add_summary(summary_img, step)
 
-                        if (self.valid_size >= self.sample_grid) and self.save_valid_images:
+                        if (self.valid_size >= self.sample_grid) and self.save_valid_images and\
+                                (log_valid_images and epoch % self.log_valid_every == 0):
+                            log_valid_images=False
+
                             batch_maps_small_pred_val = sess.run(
                                 self.pred_hm_p, {self.images: self.valid_images_loaded[:self.sample_grid]})
 
@@ -841,23 +862,28 @@ class DeepHeatmapsModel(object):
                                 num_landmarks=self.num_landmarks, num_samples=self.sample_grid,
                                 scale=self.scale, circle_size=0, fast=self.fast_img_gen)
 
-                            map_per_channel = map_comapre_channels(
-                                self.valid_images_loaded[:self.sample_grid].copy(), batch_maps_small_pred_val,
-                                self.valid_gt_maps_loaded, image_size=int(self.image_size/4),
-                                num_landmarks=self.num_landmarks, scale=self.scale)
+                            if self.sample_per_channel:
+                                map_per_channel = map_comapre_channels(
+                                    self.valid_images_loaded[:self.sample_grid].copy(), batch_maps_small_pred_val,
+                                    self.valid_gt_maps_loaded, image_size=int(self.image_size/4),
+                                    num_landmarks=self.num_landmarks, scale=self.scale)
 
-                            summary_img = sess.run(
-                                self.img_summary_valid, {self.log_image_map: np.expand_dims(merged_img, 0),
-                                                   self.log_map_channels: np.expand_dims(map_per_channel, 0)})
+                                summary_img = sess.run(
+                                    self.img_summary_valid, {self.log_image_map: np.expand_dims(merged_img, 0),
+                                                       self.log_map_channels: np.expand_dims(map_per_channel, 0)})
+                            else:
+                                summary_img = sess.run(
+                                    self.img_summary_valid, {self.log_image_map: np.expand_dims(merged_img, 0)})
                             summary_writer.add_summary(summary_img, step)
 
                     else:
                         sample_path_imgs = os.path.join(self.save_sample_path,'epoch-%d-train-iter-%d-1.png'
                                                         % (epoch, step + 1))
-                        sample_path_ch_maps = os.path.join(self.save_sample_path, 'epoch-%d-train-iter-%d-3.png'
-                                                           % (epoch, step + 1))
                         scipy.misc.imsave(sample_path_imgs, merged_img)
-                        scipy.misc.imsave(sample_path_ch_maps, map_per_channel)
+                        if self.sample_per_channel:
+                            sample_path_ch_maps = os.path.join(self.save_sample_path, 'epoch-%d-train-iter-%d-3.png'
+                                                               % (epoch, step + 1))
+                            scipy.misc.imsave(sample_path_ch_maps, map_per_channel)
 
             print('*** Finished Training ***')
 
