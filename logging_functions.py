@@ -103,20 +103,24 @@ def heat_maps_to_image(maps, landmarks=None, image_size=256, num_landmarks=68):
 
 
 def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_size=256, num_landmarks=68,
-                                   num_samples=9, scale=255, circle_size=2, test_data='full', fast=False):
+                                   num_samples=9, scale=255, circle_size=2, fast=False):
 
     images = images[:num_samples]
     if maps.shape[1] is not image_size:
         images = zoom(images, (1, 0.25, 0.25, 1))
         image_size /= 4
         image_size=int(image_size)
-    if maps_gt.shape[1] is not image_size:
-        maps_gt = zoom(maps_gt, (1, 0.25, 0.25, 1))
+    if maps_gt is not None:
+        if maps_gt.shape[1] is not image_size:
+            maps_gt = zoom(maps_gt, (1, 0.25, 0.25, 1))
 
     cmap = plt.get_cmap('jet')
 
     row = int(np.sqrt(num_samples))
-    merged = np.zeros([row * image_size, row * image_size * 3, 3])
+    if maps_gt is None:
+        merged = np.zeros([row * image_size, row * image_size * 2, 3])
+    else:
+        merged = np.zeros([row * image_size, row * image_size * 3, 3])
 
     for idx, img in enumerate(images):
         i = idx // row
@@ -137,9 +141,10 @@ def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_
         rgba_map_image = cmap(map_image)
         map_image = np.delete(rgba_map_image, 3, 2) * 255
 
-        if test_data not in ['full', 'challenging', 'common', 'training', 'test']:
-            map_gt_image = map_image.copy()
-        else:
+        img = create_img_with_landmarks(img, img_landmarks, image_size, num_landmarks, scale=scale,
+                                        circle_size=circle_size)
+
+        if maps_gt is not None:
             if fast:
                 map_gt_image = np.amax(maps_gt[idx, :, :, :], 2)
                 map_gt_image = (map_gt_image - map_gt_image.min()) / (map_gt_image.max() - map_gt_image.min())
@@ -149,21 +154,23 @@ def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_
             rgba_map_gt_image = cmap(map_gt_image)
             map_gt_image = np.delete(rgba_map_gt_image, 3, 2) * 255
 
-        img = create_img_with_landmarks(img, img_landmarks, image_size, num_landmarks, scale=scale,
-                                        circle_size=circle_size)
-
-        merged[i * image_size:(i + 1) * image_size, (j * 3) * image_size:(j * 3 + 1) * image_size, :] = img
-        merged[i * image_size:(i + 1) * image_size, (j * 3 + 1) * image_size:(j * 3 + 2) * image_size,
-        :] = map_image
-        merged[i * image_size:(i + 1) * image_size, (j * 3 + 2) * image_size:(j * 3 + 3) * image_size,
-        :] = map_gt_image
+            merged[i * image_size:(i + 1) * image_size, (j * 3) * image_size:(j * 3 + 1) * image_size, :] = img
+            merged[i * image_size:(i + 1) * image_size, (j * 3 + 1) * image_size:(j * 3 + 2) * image_size,
+            :] = map_image
+            merged[i * image_size:(i + 1) * image_size, (j * 3 + 2) * image_size:(j * 3 + 3) * image_size,
+            :] = map_gt_image
+        else:
+            merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = img
+            merged[i * image_size:(i + 1) * image_size, (j * 2 + 1) * image_size:(j * 2 + 2) * image_size,:] = map_image
 
     return merged
 
 
-def map_comapre_channels(images, maps1, maps2, image_size=64, num_landmarks=68, scale=255, test_data='full'):
+def map_comapre_channels(images, maps1, maps2, image_size=64, num_landmarks=68, scale=255):
+
         map1 = maps1[0]
-        map2 = maps2[0]
+        if maps2 is not None:
+            map2 = maps2[0]
         image = images[0]
 
         if image.shape[0] is not image_size:
@@ -174,25 +181,30 @@ def map_comapre_channels(images, maps1, maps2, image_size=64, num_landmarks=68, 
             image = 127.5 * (image + 1)
 
         row = np.ceil(np.sqrt(num_landmarks)).astype(np.int64)
-        merged = np.zeros([row * image_size, row * image_size * 2, 3])
+        if maps2 is not None:
+            merged = np.zeros([row * image_size, row * image_size * 2, 3])
+        else:
+            merged = np.zeros([row * image_size, row * image_size, 3])
 
         for idx in range(num_landmarks):
             i = idx // row
             j = idx % row
             channel_map = map_to_rgb(normalize_map(map1[:, :, idx]))
-            if test_data not in ['full', 'challenging', 'common', 'training', 'test']:
-                channel_map2 = channel_map.copy()
-            else:
+            if maps2 is not None:
                 channel_map2 = map_to_rgb(normalize_map(map2[:, :, idx]))
-
-            merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = channel_map
-            merged[i * image_size:(i + 1) * image_size, (j * 2 + 1) * image_size:(j * 2 + 2) * image_size,
-            :] = channel_map2
+                merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] =\
+                    channel_map
+                merged[i * image_size:(i + 1) * image_size, (j * 2 + 1) * image_size:(j * 2 + 2) * image_size, :] =\
+                    channel_map2
+            else:
+                merged[i * image_size:(i + 1) * image_size, j * image_size:(j + 1) * image_size, :] = channel_map
 
         i = (idx + 1) // row
         j = (idx + 1) % row
-        merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = image
-
+        if maps2 is not None:
+            merged[i * image_size:(i + 1) * image_size, (j * 2) * image_size:(j * 2 + 1) * image_size, :] = image
+        else:
+            merged[i * image_size:(i + 1) * image_size, j * image_size:(j + 1) * image_size, :] = image
         return merged
 
 
@@ -220,6 +232,7 @@ def heat_maps_to_image_rgb(maps, landmarks=None, image_size=256, num_landmarks=6
     return map_image
 
 
+# TODO: fix not to use test_data, save as the version without pre-allocation (currently not using this function)
 def merge_images_landmarks_maps_gt_alloc_once(
         images, maps, maps_gt, merged, landmarks, image_size=256, num_landmarks=68, num_samples=9, scale=255,
         circle_size=2, test_data='full', approx=False, add_landmarks=True):
@@ -275,6 +288,7 @@ def merge_images_landmarks_maps_gt_alloc_once(
                     maps_gt[idx, :, :, :], image_size=image_size, num_landmarks=num_landmarks, approx=approx)
 
 
+# TODO: fix not to use test_data, save as the version without pre-allocation (currently not using this function)
 def map_comapre_channels_alloc_once(image, map1, map2, merged, image_size=64, num_landmarks=68, scale=255, test_data='full'):
 
     row = int(np.ceil(np.sqrt(num_landmarks)))

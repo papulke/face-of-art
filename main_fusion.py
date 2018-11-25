@@ -12,12 +12,12 @@ flags = tf.app.flags
 # mode and logging parameters
 flags.DEFINE_string('mode', 'TRAIN', "'TRAIN' or 'TEST'")
 flags.DEFINE_integer('print_every', 100, "print losses to screen + log every X steps")
-flags.DEFINE_integer('save_every', 5000, "save model every X steps")
+flags.DEFINE_integer('save_every', 20000, "save model every X steps")
 flags.DEFINE_integer('sample_every', 5000, "sample heatmaps + landmark predictions every X steps")
 flags.DEFINE_integer('sample_grid', 4, 'number of training images in sample')
 flags.DEFINE_bool('sample_to_log', True, 'samples will be saved to tensorboard log')
-flags.DEFINE_integer('valid_size', 0, 'number of validation images to run')
-flags.DEFINE_integer('log_valid_every', 5, 'evaluate on valid set every X epochs')
+flags.DEFINE_integer('valid_size', 4, 'number of validation images to run')
+flags.DEFINE_integer('log_valid_every', 10, 'evaluate on valid set every X epochs')
 flags.DEFINE_integer('debug_data_size', 20, 'subset data size to test in debug mode')
 flags.DEFINE_bool('debug', False, 'run in debug mode - use subset of the data')
 
@@ -30,8 +30,8 @@ flags.DEFINE_string('img_path', data_dir, "data directory")
 flags.DEFINE_string('test_model_path', 'model/deep_heatmaps-50000', "saved model to test")
 flags.DEFINE_string('test_data', 'full', 'test set to use: full/common/challenging/test/art')
 flags.DEFINE_string('valid_data', 'full', 'validation set to use: full/common/challenging/test/art')
-flags.DEFINE_string('train_crop_dir', 'crop_gt_margin_0.25',"directory of train images cropped to bb (+margin)")
-flags.DEFINE_string('img_dir_ns', 'crop_gt_margin_0.25_ns',"dir of train imgs cropped to bb + style transfer")
+flags.DEFINE_string('train_crop_dir', 'crop_gt_margin_0.25', "directory of train images cropped to bb (+margin)")
+flags.DEFINE_string('img_dir_ns', 'crop_gt_margin_0.25_ns', "dir of train imgs cropped to bb + style transfer")
 flags.DEFINE_string('epoch_data_dir', 'epoch_data', "directory containing pre-augmented data for each epoch")
 flags.DEFINE_bool('use_epoch_data', False, "use pre-augmented data")
 
@@ -61,8 +61,8 @@ flags.DEFINE_bool('adam_optimizer', True, "use adam optimizer (if False momentum
 flags.DEFINE_float('momentum', 0.95, "optimizer momentum (if adam_optimizer==False)")
 flags.DEFINE_integer('step', 100000, 'step for lr decay')
 flags.DEFINE_float('gamma', 0.1, 'exponential base for lr decay')
-flags.DEFINE_float('reg', 0, 'scalar multiplier for weight decay (0 to disable)')
-flags.DEFINE_string('weight_initializer','xavier', 'weight initializer: random_normal / xavier')
+flags.DEFINE_float('reg', 1e-5, 'scalar multiplier for weight decay (0 to disable)')
+flags.DEFINE_string('weight_initializer', 'xavier', 'weight initializer: random_normal / xavier')
 flags.DEFINE_float('weight_initializer_std', 0.01, 'std for random_normal weight initializer')
 flags.DEFINE_float('bias_initializer', 0.0, 'constant value for bias initializer')
 
@@ -71,7 +71,7 @@ flags.DEFINE_bool('augment_basic', True,"use basic augmentation?")
 flags.DEFINE_integer('basic_start', 0,  'min epoch to start basic augmentation')
 flags.DEFINE_bool('augment_texture', False,"use artistic texture augmentation?")
 flags.DEFINE_float('p_texture', 0., 'initial probability of artistic texture augmentation')
-flags.DEFINE_bool('augment_geom', False,"use artistic geometric augmentation?")
+flags.DEFINE_bool('augment_geom', False, "use artistic geometric augmentation?")
 flags.DEFINE_float('p_geom', 0., 'initial probability of artistic geometric augmentation')
 flags.DEFINE_integer('artistic_step', -1, 'step for increasing probability of artistic augmentation in epochs')
 flags.DEFINE_integer('artistic_start', 0, 'min epoch to start artistic augmentation')
@@ -94,7 +94,7 @@ def main(_):
         os.mkdir(save_model_path)
     if not os.path.exists(save_log_path):
         os.mkdir(save_log_path)
-    if not os.path.exists(save_sample_path) and not FLAGS.sample_to_log:
+    if not os.path.exists(save_sample_path) and (not FLAGS.sample_to_log or FLAGS.mode != 'TRAIN'):
         os.mkdir(save_sample_path)
 
     model = DeepHeatmapsModel(

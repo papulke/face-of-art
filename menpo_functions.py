@@ -225,6 +225,12 @@ def load_menpo_image_list(
         return augment_menpo_img_geom(img, p_geom=1. * (np.random.rand() < p_geom))
 
     def resize_menpo_img(img):
+        h, w = img.shape
+        diff = h - w
+        if diff < 0:
+            img.pixels = np.pad(img.pixels, ((0, 0), (0, -1 * diff), (0, 0)), 'mean')
+        elif diff > 0:
+            img.pixels = np.pad(img.pixels, ((0, 0), (0, 0), (0, diff)), 'mean')
         return img.resize([image_size, image_size])
 
     if mode is 'TRAIN':
