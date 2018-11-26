@@ -595,11 +595,13 @@ class DeepHeatmapsModel(object):
 
             _, model_name = os.path.split(self.test_model_path)
 
+            gt_provided = self.img_menpo_list[0].has_landmarks  # check if GT landmarks provided
+
             for i in range(sample_iter):
 
                 batch_inds = img_inds[i * self.sample_grid:(i + 1) * self.sample_grid]
 
-                if self.test_data not in ['full', 'challenging', 'common', 'training', 'test']:
+                if not gt_provided:
                     batch_images = load_images(self.img_menpo_list, batch_inds, image_size=self.image_size,
                                                c_dim=self.c_dim, scale=self.scale)
 

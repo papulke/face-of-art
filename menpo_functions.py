@@ -94,23 +94,29 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
     name = img.path.name
     img_bounds = img.bounds()[1]
 
-    if bb_dictionary is None:
-        bb_menpo = img.landmarks['PTS'].bounding_box().points
+    if bb_dictionary is None and img.has_landmarks:
+        grp_name = img.landmarks.group_labels[0]
+        bb_menpo = img.landmarks[grp_name].bounding_box().points
         bb = np.array([[bb_menpo[0, 1], bb_menpo[0, 0], bb_menpo[2, 1], bb_menpo[2, 0]]])
-    else:
+    elif bb_dictionary is not None:
         if gt:
             bb = bb_dictionary[name][1]  # ground truth
         else:
             bb = bb_dictionary[name][0]  # init from face detector
+    else:
+        bb = None
 
-    bb = center_margin_bb(bb, img_bounds, margin=margin)
+    if bb is not None:
+        bb = center_margin_bb(bb, img_bounds, margin=margin)
 
-    bb_pointcloud = PointCloud(np.array([[bb[0, 1], bb[0, 0]],
-                                         [bb[0, 3], bb[0, 0]],
-                                         [bb[0, 3], bb[0, 2]],
-                                         [bb[0, 1], bb[0, 2]]]))
+        bb_pointcloud = PointCloud(np.array([[bb[0, 1], bb[0, 0]],
+                                             [bb[0, 3], bb[0, 0]],
+                                             [bb[0, 3], bb[0, 2]],
+                                             [bb[0, 1], bb[0, 2]]]))
 
-    face_crop = img.crop_to_pointcloud(bb_pointcloud)
+        face_crop = img.crop_to_pointcloud(bb_pointcloud)
+    else:
+        face_crop = img.copy()
 
     h, w = face_crop.shape
     diff = h - w
@@ -120,6 +126,9 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
         face_crop.pixels = np.pad(face_crop.pixels, ((0, 0), (0, 0), (0, diff)), 'mean')
 
     face_crop = face_crop.resize([image_size, image_size])
+
+    if face_crop.n_channels == 4:
+        face_crop.pixels = face_crop.pixels[:3, :, :]
 
     if normalize:
         face_crop.pixels = face_crop.rescale_pixels(0., 1.).pixels
@@ -191,16 +200,17 @@ def augment_menpo_img_geom(img, p_geom=0):
 
     img = img.copy()
     if p_geom > 0.5:
-        lms_geom_warp = deform_face_geometric_style(img.landmarks['PTS'].points.copy(), p_scale=p_geom, p_shift=p_geom)
-        img = warp_face_image_tps(img, PointCloud(lms_geom_warp))
+        grp_name = img.landmarks.group_labels[0]
+        lms_geom_warp = deform_face_geometric_style(img.landmarks[grp_name].points.copy(), p_scale=p_geom, p_shift=p_geom)
+        img = warp_face_image_tps(img, PointCloud(lms_geom_warp), grp_name)
     return img
 
 
-def warp_face_image_tps(img, new_shape):
-    tps = ThinPlateSplines(new_shape, img.landmarks['PTS'])
+def warp_face_image_tps(img, new_shape, lms_grp_name='PTS'):
+    tps = ThinPlateSplines(new_shape, img.landmarks[lms_grp_name])
     try:
         img_warp = img.warp_to_shape(img.shape, tps)
-        img_warp.landmarks['PTS'] = new_shape
+        img_warp.landmarks[lms_grp_name] = new_shape
         return img_warp
     except np.linalg.linalg.LinAlgError as err:
         print ('Error:'+str(err)+'\nUsing original landmarks for:\n'+str(img.path))
@@ -218,20 +228,14 @@ def load_menpo_image_list(
     def crop_to_face_image_init(img):
         return crop_to_face_image(img, bb_dictionary, gt=False, margin=margin, image_size=image_size)
 
+    def crop_to_face_image_test(img):
+        return crop_to_face_image(img, bb_dictionary=None, margin=margin, image_size=image_size)
+
     def augment_menpo_img_ns_rand(img):
         return augment_menpo_img_ns(img, img_dir_ns, p_ns=1. * (np.random.rand() < p_texture))
 
     def augment_menpo_img_geom_rand(img):
         return augment_menpo_img_geom(img, p_geom=1. * (np.random.rand() < p_geom))
-
-    def resize_menpo_img(img):
-        h, w = img.shape
-        diff = h - w
-        if diff < 0:
-            img.pixels = np.pad(img.pixels, ((0, 0), (0, -1 * diff), (0, 0)), 'mean')
-        elif diff > 0:
-            img.pixels = np.pad(img.pixels, ((0, 0), (0, 0), (0, diff)), 'mean')
-        return img.resize([image_size, image_size])
 
     if mode is 'TRAIN':
         if train_crop_dir is None:
@@ -253,16 +257,17 @@ def load_menpo_image_list(
             out_image_list = out_image_list.map(augment_face_image)
 
     else:
-        img_set_dir = os.path.join(img_dir, test_data + '_set')
         if test_data in ['full', 'challenging', 'common', 'training', 'test']:
+            img_set_dir = os.path.join(img_dir, test_data + '_set')
             out_image_list = mio.import_images(img_set_dir, verbose=verbose, normalize=False)
             if bb_type is 'gt':
                 out_image_list = out_image_list.map(crop_to_face_image_gt)
             elif bb_type is 'init':
                 out_image_list = out_image_list.map(crop_to_face_image_init)
         else:
-            out_image_list = mio.import_images(img_set_dir, verbose=verbose)
-            out_image_list = out_image_list.map(resize_menpo_img)
+            img_set_dir = os.path.join(img_dir, test_data)
+            out_image_list = mio.import_images(img_set_dir, verbose=verbose, normalize=False)
+            out_image_list = out_image_list.map(crop_to_face_image_test)
 
     return out_image_list
 
