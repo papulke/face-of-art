@@ -61,6 +61,8 @@ def load_images_landmarks_maps(img_list, batch_inds, primary=False, image_size=2
     else:
         landmarks = None
 
+    grp_name = batch_menpo_images[0].landmarks.group_labels[0]
+
     for ind, img in enumerate(batch_menpo_images):
 
         if img.n_channels < 3 and c_dim == 3:
@@ -69,18 +71,18 @@ def load_images_landmarks_maps(img_list, batch_inds, primary=False, image_size=2
             images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
-            lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms = np.minimum(lms, image_size / 4 - 1)
             create_heat_maps_from_landmarks_alloc_once(
                 landmarks=lms, maps=maps_small[ind, :, :, :], num_landmarks=num_landmarks, image_size=image_size / 4,
                 sigma=sigma)
         else:
-            lms = img.landmarks['PTS'].points
+            lms = img.landmarks[grp_name].points
             lms = np.minimum(lms, image_size - 1)
             create_heat_maps_from_landmarks_alloc_once(
                 landmarks=lms, maps=maps[ind, :, :, :], num_landmarks=num_landmarks, image_size=image_size, sigma=sigma)
 
-            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms_small = np.minimum(lms_small, image_size / 4 - 1)
             create_heat_maps_from_landmarks_alloc_once(
                 landmarks=lms_small, maps=maps_small[ind, :, :, :], num_landmarks=num_landmarks,
@@ -131,6 +133,7 @@ def load_images_landmarks(img_list, batch_inds, primary=False, image_size=256, c
     images = np.zeros([num_inputs, image_size, image_size, c_dim]).astype('float32')
     landmarks_small = np.zeros([num_inputs, num_landmarks, 2]).astype('float32')
     landmarks = np.zeros([num_inputs, num_landmarks, 2]).astype('float32')
+    grp_name = batch_menpo_images[0].landmarks.group_labels[0]
 
     for ind, img in enumerate(batch_menpo_images):
 
@@ -138,11 +141,11 @@ def load_images_landmarks(img_list, batch_inds, primary=False, image_size=256, c
             images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
         else:
             images[ind, :, :, :] = img.pixels_with_channels_at_back()
-        lms_small = img.resize([image_size/4, image_size / 4]).landmarks['PTS'].points
+        lms_small = img.resize([image_size/4, image_size / 4]).landmarks[grp_name].points
         landmarks_small[ind, :, :] = np.minimum(lms_small, image_size/4 - 1)
 
         if not primary:
-            lms = img.landmarks['PTS'].points
+            lms = img.landmarks[grp_name].points
             landmarks[ind, :, :] = np.minimum(lms, image_size-1)
 
     if scale is 255:
@@ -195,6 +198,7 @@ def load_images_landmarks_maps_alloc_once(img_list, batch_inds, images, maps_sma
 
     batch_menpo_images = img_list[batch_inds]
     c_dim = images.shape[-1]
+    grp_name = batch_menpo_images[0].landmarks.group_labels[0]
 
     for ind, img in enumerate(batch_menpo_images):
 
@@ -204,18 +208,18 @@ def load_images_landmarks_maps_alloc_once(img_list, batch_inds, images, maps_sma
             images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
-            lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms = np.minimum(lms, image_size / 4 - 1)
             create_heat_maps_from_landmarks_alloc_once(
                 landmarks=lms, maps=maps_small[ind, :, :, :], num_landmarks=num_landmarks, image_size=image_size / 4,
                 sigma=sigma)
         else:
-            lms = img.landmarks['PTS'].points
+            lms = img.landmarks[grp_name].points
             lms = np.minimum(lms, image_size - 1)
             create_heat_maps_from_landmarks_alloc_once(
                 landmarks=lms, maps=maps[ind, :, :, :], num_landmarks=num_landmarks, image_size=image_size, sigma=sigma)
 
-            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms_small = np.minimum(lms_small, image_size / 4 - 1)
             create_heat_maps_from_landmarks_alloc_once(
                 landmarks=lms_small, maps=maps_small[ind, :, :, :], num_landmarks=num_landmarks,
@@ -256,17 +260,18 @@ def load_images_landmarks_alloc_once(
         img_list, batch_inds, images, landmarks_small, landmarks, primary=False, image_size=256, scale=255):
     batch_menpo_images = img_list[batch_inds]
     c_dim = images.shape[-1]
+    grp_name = batch_menpo_images[0].landmarks.group_labels[0]
 
     for ind, img in enumerate(batch_menpo_images):
         if img.n_channels < 3 and c_dim == 3:
             images[ind, :, :, :] = gray2rgb(img.pixels_with_channels_at_back())
         else:
             images[ind, :, :, :] = img.pixels_with_channels_at_back()
-        lms_small = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+        lms_small = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
         landmarks_small[ind, :, :] = np.minimum(lms_small, image_size / 4 - 1)
 
         if not primary:
-            lms = img.landmarks['PTS'].points
+            lms = img.landmarks[grp_name].points
             landmarks[ind, :, :] = np.minimum(lms, image_size - 1)
 
     if scale is 255:
@@ -337,6 +342,7 @@ def load_images_landmarks_approx_maps_alloc_once(
 
     batch_menpo_images = img_list[batch_inds]
     c_dim = images.shape[-1]
+    grp_name = batch_menpo_images[0].landmarks.group_labels[0]
 
     if primary:
         win_size_small = int(win_mult * sigma)
@@ -362,19 +368,19 @@ def load_images_landmarks_approx_maps_alloc_once(
             images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
-            lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms = np.minimum(lms, image_size / 4 - 1)
             create_approx_heat_maps_alloc_once(
                 landmarks=lms, maps=maps_small[ind, :, :, :], gauss_filt=gauss_filt_small, win_mult=win_mult,
                 num_landmarks=num_landmarks, image_size=image_size / 4, sigma=sigma)
         else:
-            lms = img.landmarks['PTS'].points
+            lms = img.landmarks[grp_name].points
             lms = np.minimum(lms, image_size - 1)
             create_approx_heat_maps_alloc_once(
                 landmarks=lms, maps=maps[ind, :, :, :], gauss_filt=gauss_filt_large, win_mult=win_mult,
                 num_landmarks=num_landmarks, image_size=image_size, sigma=sigma)
 
-            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms_small = np.minimum(lms_small, image_size / 4 - 1)
             create_approx_heat_maps_alloc_once(
                 landmarks=lms_small, maps=maps_small[ind, :, :, :], gauss_filt=gauss_filt_small, win_mult=win_mult,
@@ -408,6 +414,7 @@ def load_images_landmarks_approx_maps(
         landmarks = None
 
     batch_menpo_images = img_list[batch_inds]
+    grp_name = batch_menpo_images[0].landmarks.group_labels[0]
 
     if primary:
         win_size_small = int(win_mult * sigma)
@@ -435,19 +442,19 @@ def load_images_landmarks_approx_maps(
             images[ind, :, :, :] = img.pixels_with_channels_at_back()
 
         if primary:
-            lms = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms = np.minimum(lms, image_size / 4 - 1)
             create_approx_heat_maps_alloc_once(
                 landmarks=lms, maps=maps_small[ind, :, :, :], gauss_filt=gauss_filt_small, win_mult=win_mult,
                 num_landmarks=num_landmarks, image_size=image_size / 4, sigma=sigma)
         else:
-            lms = img.landmarks['PTS'].points
+            lms = img.landmarks[grp_name].points
             lms = np.minimum(lms, image_size - 1)
             create_approx_heat_maps_alloc_once(
                 landmarks=lms, maps=maps[ind, :, :, :], gauss_filt=gauss_filt_large, win_mult=win_mult,
                 num_landmarks=num_landmarks, image_size=image_size, sigma=sigma)
 
-            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks['PTS'].points
+            lms_small = img.resize([image_size / 4, image_size / 4]).landmarks[grp_name].points
             lms_small = np.minimum(lms_small, image_size / 4 - 1)
             create_approx_heat_maps_alloc_once(
                 landmarks=lms_small, maps=maps_small[ind, :, :, :], gauss_filt=gauss_filt_small, win_mult=win_mult,
