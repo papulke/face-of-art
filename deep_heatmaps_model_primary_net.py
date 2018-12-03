@@ -248,13 +248,13 @@ class DeepHeatmapsModel(object):
                     take this layer as feature map -> insert to STN
                     """
 
-                    l1 = conv_relu_pool(input_images, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
-                                        reuse=reuse, var_scope='conv_1')
-
-                    l1_transformed = stn(feature_map=l1, bias_init=bias_init,
+                    l0_transformed = stn(feature_map=input_images, bias_init=bias_init,
                                          weights_init=weight_initializer, reuse=reuse)
 
-                    l2 = conv_relu_pool(l1_transformed, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
+                    l1 = conv_relu_pool(l0_transformed, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
+                                        reuse=reuse, var_scope='conv_1')
+
+                    l2 = conv_relu_pool(l1, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_2')
                     l3 = conv_relu(l2, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                    reuse=reuse, var_scope='conv_3')
