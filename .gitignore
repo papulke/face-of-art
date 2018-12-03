@@ -1,0 +1,10 @@
+
+*.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+*.pyc
+.idea/workspace.xml
+*.txt
+*.csv
+*.DANIEL
