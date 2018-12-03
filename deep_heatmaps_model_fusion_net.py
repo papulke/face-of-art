@@ -11,6 +11,23 @@ from logging_functions import *
 from data_loading_functions import *
 
 
+import transformer
+
+
+def stn(feature_map, weights_init, bias_init, reuse):
+    l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=64,
+                               conv_ker_init=weights_init, conv_bias_init=bias_init,
+                               reuse=reuse, var_scope='conv_stn_0_0')
+    l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=32,
+                               conv_ker_init=weights_init, conv_bias_init=bias_init,
+                               reuse=reuse, var_scope='conv_stn_0_1')
+    l_stn_0_2 = fc(l_stn_0_1, out_size=6, weights_initializer=weights_init, biases_initializer=bias_init,
+                   reuse=reuse, var_scope='conv_stn_0_2')
+
+    return transformer.spatial_transformer_network(feature_map, theta=l_stn_0_2)
+
+
+
 class DeepHeatmapsModel(object):
 
     """facial landmark localization Network"""
@@ -292,7 +309,12 @@ class DeepHeatmapsModel(object):
 
                     l_fsn_0 = tf.concat([l3, l7], 3, name='conv_3_7_fsn')
 
-                    l_fsn_1_1 = conv_relu(l_fsn_0, 3, 64, conv_dilation=1, conv_ker_init=weight_initializer,
+                    """
+                    take this layer as feature map -> insert to STN
+                    """
+                    l_fsn_0_transformed = stn(feature_map=l_fsn_0, reuse=reuse)
+
+                    l_fsn_1_1 = conv_relu(l_fsn_0_transformed, 3, 64, conv_dilation=1, conv_ker_init=weight_initializer,
                                           conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_1_1')
                     l_fsn_1_2 = conv_relu(l_fsn_0, 3, 64, conv_dilation=2, conv_ker_init=weight_initializer,
                                           conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_1_2')
@@ -1089,4 +1111,3 @@ class DeepHeatmapsModel(object):
                 [pred_hm_p, pred_hm_f], {self.images: np.expand_dims(test_image, 0)})
 
         return test_image_map_small, test_image_map
-
