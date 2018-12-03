@@ -9,8 +9,6 @@ from tensorflow import contrib
 from menpo_functions import *
 from logging_functions import *
 from data_loading_functions import *
-
-
 import transformer
 
 

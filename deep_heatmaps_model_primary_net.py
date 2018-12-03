@@ -9,7 +9,20 @@ from tensorflow import contrib
 from menpo_functions import *
 from logging_functions import *
 from data_loading_functions import *
+import transformer
 
+
+def stn(feature_map, weights_init, bias_init, reuse):
+    l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=64,
+                               conv_ker_init=weights_init, conv_bias_init=bias_init,
+                               reuse=reuse, var_scope='conv_stn_0_0')
+    l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=32,
+                               conv_ker_init=weights_init, conv_bias_init=bias_init,
+                               reuse=reuse, var_scope='conv_stn_0_1')
+    l_stn_0_2 = fc(l_stn_0_1, out_size=6, weights_initializer=weights_init, biases_initializer=bias_init,
+                   reuse=reuse, var_scope='conv_stn_0_2')
+
+    return transformer.spatial_transformer_network(feature_map, theta=l_stn_0_2)
 
 class DeepHeatmapsModel(object):
 
@@ -231,7 +244,12 @@ class DeepHeatmapsModel(object):
             with tf.variable_scope('heatmaps_network'):
                 with tf.name_scope('primary_net'):
 
-                    l1 = conv_relu_pool(input_images, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
+                    """
+                    take this layer as feature map -> insert to STN
+                    """
+                    l_fsn_0_transformed = stn(feature_map=input_images, reuse=reuse)
+
+                    l1 = conv_relu_pool(l_fsn_0_transformed, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_1')
                     l2 = conv_relu_pool(l1, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_2')
