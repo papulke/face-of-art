@@ -2,6 +2,15 @@ import tensorflow as tf
 import numpy as np
 
 
+def fc(input, out_size, weights_initializer, biases_initializer, reuse, var_scope='layer'):
+    with tf.variable_scope(var_scope):
+        in_size = input.shape[1] * input.shape[2] * input.shape[3]
+        input = tf.reshape(input, [-1, in_size])
+        return tf.contrib.layers.fully_connected(input, num_outputs=out_size, activation_fn=None,
+                                                 weights_initializer=weights_initializer,
+                                                 biases_initializer=biases_initializer,
+                                                 scope=var_scope, reuse=reuse)
+
 def conv_relu_pool(input, conv_ker, conv_filters, conv_stride=1, conv_padding='SAME',
                    conv_ker_init=tf.random_normal_initializer(0.01), conv_bias_init=tf.zeros_initializer(),
                    pool_size=2, pool_stride=2, pool_padding='same', var_scope='layer', reuse=None):
