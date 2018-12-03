@@ -247,7 +247,8 @@ class DeepHeatmapsModel(object):
                     """
                     take this layer as feature map -> insert to STN
                     """
-                    l_fsn_0_transformed = stn(feature_map=input_images, reuse=reuse)
+                    l_fsn_0_transformed = stn(feature_map=input_images, bias_init=bias_init,
+                                              weights_init=weight_initializer, reuse=reuse)
 
                     l1 = conv_relu_pool(l_fsn_0_transformed, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_1')
