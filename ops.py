@@ -4,7 +4,7 @@ import numpy as np
 
 def fc(input, out_size, weights_initializer, biases_initializer, reuse, var_scope='layer'):
     with tf.variable_scope(var_scope):
-        in_size = input.shape[1] * input.shape[2] * input.shape[3]
+        in_size = int(input.shape[1] * input.shape[2] * input.shape[3])
         input = tf.reshape(input, [-1, in_size])
         return tf.contrib.layers.fully_connected(input, num_outputs=out_size, activation_fn=None,
                                                  weights_initializer=weights_initializer,
