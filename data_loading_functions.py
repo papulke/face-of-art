@@ -403,7 +403,7 @@ def load_images_landmarks_approx_maps(
 
     num_inputs = len(batch_inds)
     images = np.zeros([num_inputs, image_size, image_size, c_dim]).astype('float32')
-    maps_small = np.zeros([num_inputs, image_size / 4, image_size / 4, num_landmarks]).astype('float32')
+    maps_small = np.zeros([num_inputs, int(image_size / 4), int(image_size / 4), num_landmarks]).astype('float32')
 
     if not primary:
         maps = np.zeros([num_inputs, image_size, image_size, num_landmarks]).astype('float32')
