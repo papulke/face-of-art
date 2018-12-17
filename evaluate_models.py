@@ -3,10 +3,11 @@ from glob import glob
 
 flags = tf.app.flags
 
-data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
-models_dir = 'tests_fusion'
-pre_train_model_name = 'deep_heatmaps-50000'
+models_dir = 'model'
+pre_train_model_name = 'deep_heatmaps-30000'
 datasets=['full','common','challenging','test']
+
+data_dir = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
 
 # define paths
 flags.DEFINE_string('img_dir', data_dir, 'data directory')
@@ -61,6 +62,8 @@ def main(_):
                 img_path=FLAGS.img_dir, test_data=test_data, batch_size=FLAGS.batch_size, image_size=FLAGS.image_size,
                 margin=FLAGS.margin, bb_type=FLAGS.bb_type, c_dim=FLAGS.c_dim, scale=FLAGS.scale,
                 num_landmarks=FLAGS.num_landmarks, debug=FLAGS.debug, debug_data_size=FLAGS.debug_data_size)
+
+	    np.save(os.path.join(log_path, model_name+'_'+test_data+'_nme'), err)
 
             print_nme_statistics(
                 errors=err, model_path=os.path.join(model_dir,'model', FLAGS.model_name),
