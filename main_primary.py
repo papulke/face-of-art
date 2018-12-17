@@ -3,20 +3,21 @@ from deep_heatmaps_model_primary_net import DeepHeatmapsModel
 import os
 
 
-data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
 pre_train_path = 'saved_models/0.01/model/deep_heatmaps-50000'
+
+data_dir = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
 output_dir = os.getcwd()
 
 flags = tf.app.flags
 
 # mode and logging parameters
 flags.DEFINE_string('mode', 'TRAIN', "'TRAIN' or 'TEST'")
-flags.DEFINE_integer('print_every', 100, "print losses to screen + log every X steps")
-flags.DEFINE_integer('save_every', 20000, "save model every X steps")
+flags.DEFINE_integer('print_every', 200, "print losses to screen + log every X steps")
+flags.DEFINE_integer('save_every', 5000, "save model every X steps")
 flags.DEFINE_integer('sample_every', 5000, "sample heatmaps + landmark predictions every X steps")
-flags.DEFINE_integer('sample_grid', 9, 'number of training images in sample')
+flags.DEFINE_integer('sample_grid', 4, 'number of training images in sample')
 flags.DEFINE_bool('sample_to_log', True, 'samples will be saved to tensorboard log')
-flags.DEFINE_integer('valid_size', 9, 'number of validation images to run')
+flags.DEFINE_integer('valid_size', 4, 'number of validation images to run')
 flags.DEFINE_integer('log_valid_every', 10, 'evaluate on valid set every X epochs')
 flags.DEFINE_integer('debug_data_size', 20, 'subset data size to test in debug mode')
 flags.DEFINE_bool('debug', False, 'run in debug mode - use subset of the data')
@@ -51,7 +52,7 @@ flags.DEFINE_bool('approx_maps', True, 'use heatmap approximation - major speed 
 flags.DEFINE_float('win_mult', 3.33335, 'gaussian filter size for approx maps: 2 * sigma * win_mult + 1')
 
 # optimization parameters
-flags.DEFINE_integer('train_iter', 100000, 'maximum training iterations')
+flags.DEFINE_integer('train_iter', 20000, 'maximum training iterations')
 flags.DEFINE_integer('batch_size', 10, "batch_size")
 flags.DEFINE_float('learning_rate', 1e-4, "initial learning rate")
 flags.DEFINE_bool('adam_optimizer', True, "use adam optimizer (if False momentum optimizer is used)")

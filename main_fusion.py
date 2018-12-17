@@ -4,15 +4,16 @@ import os
 
 
 data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
-pre_train_path = 'saved_models/0.01/model/deep_heatmaps-50000'
+pre_train_path = 'model/deep_heatmaps-15000'
 output_dir = os.getcwd()
+data_dir = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
 
 flags = tf.app.flags
 
 # mode and logging parameters
 flags.DEFINE_string('mode', 'TRAIN', "'TRAIN' or 'TEST'")
-flags.DEFINE_integer('print_every', 100, "print losses to screen + log every X steps")
-flags.DEFINE_integer('save_every', 20000, "save model every X steps")
+flags.DEFINE_integer('print_every', 200, "print losses to screen + log every X steps")
+flags.DEFINE_integer('save_every', 5000, "save model every X steps")
 flags.DEFINE_integer('sample_every', 5000, "sample heatmaps + landmark predictions every X steps")
 flags.DEFINE_integer('sample_grid', 4, 'number of training images in sample')
 flags.DEFINE_bool('sample_to_log', True, 'samples will be saved to tensorboard log')
@@ -54,7 +55,7 @@ flags.DEFINE_float('win_mult', 3.33335, 'gaussian filter size for approx maps: 2
 # optimization parameters
 flags.DEFINE_float('l_weight_primary', 1., 'primary loss weight')
 flags.DEFINE_float('l_weight_fusion', 3., 'fusion loss weight')
-flags.DEFINE_integer('train_iter', 100000, 'maximum training iterations')
+flags.DEFINE_integer('train_iter', 30000, 'maximum training iterations')
 flags.DEFINE_integer('batch_size', 6, "batch_size")
 flags.DEFINE_float('learning_rate', 1e-4, "initial learning rate")
 flags.DEFINE_bool('adam_optimizer', True, "use adam optimizer (if False momentum optimizer is used)")
