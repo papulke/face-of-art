@@ -9,20 +9,26 @@ from tensorflow import contrib
 from menpo_functions import *
 from logging_functions import *
 from data_loading_functions import *
-import transformer
+import transformer_TPS
 
 
 def stn(feature_map, weights_init, bias_init, reuse):
+    nx = ny = 20
+    height = feature_map.shape[1].value
+    width = feature_map.shape[2].value
+
     l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=64,
                                conv_ker_init=weights_init, conv_bias_init=bias_init,
                                reuse=reuse, var_scope='conv_stn_0_0')
     l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=32,
                                conv_ker_init=weights_init, conv_bias_init=bias_init,
                                reuse=reuse, var_scope='conv_stn_0_1')
-    l_stn_0_2 = fc(l_stn_0_1, out_size=6, weights_initializer=weights_init, biases_initializer=bias_init,
+    l_stn_0_2 = fc(l_stn_0_1, out_size=nx*ny*2, weights_initializer=weights_init, biases_initializer=bias_init,
                    reuse=reuse, var_scope='conv_stn_0_2')
 
-    return transformer.spatial_transformer_network(feature_map, theta=l_stn_0_2)
+    # return transformer.spatial_transformer_network(feature_map, theta=l_stn_0_2)
+    return transformer_TPS.TPS(U=feature_map, nx=nx, ny=ny, cp=l_stn_0_2, out_size=(height, width))
+
 
 
 
