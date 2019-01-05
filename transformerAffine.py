@@ -1,12 +1,13 @@
 import tensorflow as tf
 from enum import Enum
 
+
 class MODE(Enum):
     AFFINE = 0,
     TPS = 1
 
 
-def spatial_transformer_network(input_fmap, theta, mode=MODE.AFFINE, **kwargs):
+def spatial_transformer_network(input_fmap, theta, is_inverse=False, mode=MODE.AFFINE, **kwargs):
     """
     Spatial Transformer Network layer implementation as described in [1].
 
@@ -51,13 +52,26 @@ def spatial_transformer_network(input_fmap, theta, mode=MODE.AFFINE, **kwargs):
     if mode == MODE.AFFINE:
         # reshape theta to (B, 2, 3)
         theta = tf.reshape(theta, [B, 2, 3])
+
+        if is_inverse:
+            """
+            original affine transformation:
+            [cos(a) -sin(a) Tx
+             sin(a)  cos(a) Ty]
+             
+            inverse affine transformation:
+            [cos(a) sin(a) -Tx*cos(a)-Ty*sin(a)
+            -sin(a) cos(a) -Ty*cos(a)+Tx*sin(a)]
+            """
+            Tx = theta[:, 0, 2]
+            Ty = theta[:, 1, 2]
+            cos_a = theta[:, 0, 0]
+            sin_a = theta[:, 1, 0]
+            inv_theta = [[cos_a, sin_a, -Tx*cos_a-Ty*sin_a],
+                         [-sin_a, cos_a, -Ty*cos_a+Tx*sin_a]]
+            theta = inv_theta
+
         batch_grids = affine_grid_generator(H, W, theta)
-    elif mode == MODE.TPS:
-        theta = tf.reshape(theta[:,0:6], [B, 2, 3])
-        U_x = theta[:, 6:(6+W)]
-        U_y = theta[:, (6+W):]
-        mat_U = tf.stack(values=[U_x, U_y], axis=1)
-        batch_grids = tps_grid_generator(H, W, theta, mat_U)
     else:
         raise ValueError("given MODE not supported")
 

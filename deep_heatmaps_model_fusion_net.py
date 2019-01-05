@@ -9,27 +9,8 @@ from tensorflow import contrib
 from menpo_functions import *
 from logging_functions import *
 from data_loading_functions import *
-import transformer_TPS
-
-
-def stn(feature_map, weights_init, bias_init, reuse):
-    nx = ny = 20
-    height = feature_map.shape[1].value
-    width = feature_map.shape[2].value
-
-    l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=64,
-                               conv_ker_init=weights_init, conv_bias_init=bias_init,
-                               reuse=reuse, var_scope='conv_stn_0_0')
-    l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=32,
-                               conv_ker_init=weights_init, conv_bias_init=bias_init,
-                               reuse=reuse, var_scope='conv_stn_0_1')
-    l_stn_0_2 = fc(l_stn_0_1, out_size=nx*ny*2, weights_initializer=weights_init, biases_initializer=bias_init,
-                   reuse=reuse, var_scope='conv_stn_0_2')
-
-    # return transformer.spatial_transformer_network(feature_map, theta=l_stn_0_2)
-    return transformer_TPS.TPS(U=feature_map, nx=nx, ny=ny, cp=l_stn_0_2, out_size=(height, width))
-
-
+# import transformer_TPS as transformer
+import transformerAffine as trnsfrmr
 
 
 class DeepHeatmapsModel(object):
@@ -48,6 +29,8 @@ class DeepHeatmapsModel(object):
                  train_crop_dir='crop_gt_margin_0.25', img_dir_ns='crop_gt_margin_0.25_ns',
                  print_every=100, save_every=5000, sample_every=5000, sample_grid=9, sample_to_log=True,
                  debug_data_size=20, debug=False, epoch_data_dir='epoch_data', use_epoch_data=False, menpo_verbose=True):
+
+        self.theta = [] # used to hold the affine transformation parameters (batch_size, 6)
 
         # define some extra parameters
 
@@ -273,7 +256,13 @@ class DeepHeatmapsModel(object):
             with tf.variable_scope('heatmaps_network'):
                 with tf.name_scope('primary_net'):
 
-                    l1 = conv_relu_pool(input_images, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
+                    """
+                    take this images -> insert to STN -> output warped images
+                    """
+                    l_0 = self.stn(feature_map=input_images, bias_init=bias_init,
+                                   weights_init=weight_initializer, reuse=reuse)
+
+                    l1 = conv_relu_pool(l_0, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_1')
                     l2 = conv_relu_pool(l1, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_2')
@@ -313,12 +302,6 @@ class DeepHeatmapsModel(object):
 
                     l_fsn_0 = tf.concat([l3, l7], 3, name='conv_3_7_fsn')
 
-                    """
-                    take this layer as feature map -> insert to STN
-                    """
-                    l_fsn_0 = stn(feature_map=l_fsn_0, bias_init=bias_init, weights_init=weight_initializer,
-                                  reuse=reuse)
-
                     l_fsn_1_1 = conv_relu(l_fsn_0, 3, 64, conv_dilation=1, conv_ker_init=weight_initializer,
                                           conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_1_1')
                     l_fsn_1_2 = conv_relu(l_fsn_0, 3, 64, conv_dilation=2, conv_ker_init=weight_initializer,
@@ -351,10 +334,10 @@ class DeepHeatmapsModel(object):
                     l_fsn_3 = tf.concat([l_fsn_3_1, l_fsn_3_2, l_fsn_3_3, l_fsn_3_4], 3, name='conv_fsn_3')
 
                     l_fsn_4 = conv_relu(l_fsn_3, 1, 256, conv_ker_init=weight_initializer,
-                                        conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_4')
+                                        conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_4')  # 64x64x256
 
                     l_fsn_5 = conv(l_fsn_4, 1, self.num_landmarks, conv_ker_init=weight_initializer,
-                                   conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_5')
+                                   conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_5')  # 64x64x68
 
                 with tf.name_scope('upsample_net'):
 
@@ -362,6 +345,9 @@ class DeepHeatmapsModel(object):
                                  conv_ker_init=deconv2d_bilinear_upsampling_initializer(
                                      [8, 8, self.num_landmarks, self.num_landmarks]), conv_bias_init=bias_init,
                                  reuse=reuse, var_scope='deconv_1')
+                    # apply inverse transformation on the heatmaps,
+                    # 68 heatmaps, apply same transformation to each one
+                    out = trnsfrmr.spatial_transformer_network(out, theta=self.theta, is_inverse=True)
 
                 self.all_layers = [l1, l2, l3, l4, l5, l6, l7, primary_out, l_fsn_1, l_fsn_2, l_fsn_3, l_fsn_4,
                                    l_fsn_5, out]
@@ -694,10 +680,10 @@ class DeepHeatmapsModel(object):
                 print ('saved %s' % sample_path_imgs)
 
             if self.compute_nme and self.test_data in ['full', 'challenging', 'common', 'training', 'test']:
-                print ('\n Calculating NME on: ' + self.test_data + '...')
+                print('\n Calculating NME on: ' + self.test_data + '...')
                 pred_lms, lms_gt = self.predict_landmarks_in_batches(self.img_menpo_list, sess)
                 nme = sess.run(self.nme_loss, {self.pred_lms: pred_lms, self.lms: lms_gt})
-                print ('NME on ' + self.test_data + ': ' + str(nme))
+                print('NME on ' + self.test_data + ': ' + str(nme))
 
     def train(self):
         # set random seed
@@ -721,7 +707,7 @@ class DeepHeatmapsModel(object):
         else:
             optimizer = tf.train.MomentumOptimizer(lr, self.momentum)
 
-        train_op = optimizer.minimize(self.total_loss,global_step=global_step)
+        train_op = optimizer.minimize(self.total_loss, global_step=global_step)
 
         # TODO: remove
         if self.approx_maps_gpu:  # create heat-maps using tf convolution. use only with GPU support!
@@ -1117,3 +1103,21 @@ class DeepHeatmapsModel(object):
                 [pred_hm_p, pred_hm_f], {self.images: np.expand_dims(test_image, 0)})
 
         return test_image_map_small, test_image_map
+
+    def stn(self, feature_map, weights_init, bias_init, reuse):
+        nx = ny = 48
+        height = feature_map.shape[1].value
+        width = feature_map.shape[2].value
+
+        l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=64,
+                                   conv_ker_init=weights_init, conv_bias_init=bias_init,
+                                   reuse=reuse, var_scope='conv_stn_0_0')
+        l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=32,
+                                   conv_ker_init=weights_init, conv_bias_init=bias_init,
+                                   reuse=reuse, var_scope='conv_stn_0_1')
+        l_stn_0_2 = fc(l_stn_0_1, out_size=nx*ny*2, weights_initializer=weights_init, biases_initializer=bias_init,
+                       reuse=reuse, var_scope='conv_stn_0_2')
+        self.theta = l_stn_0_2
+        return trnsfrmr.spatial_transformer_network(feature_map, theta=self.theta)
+        # return transformer_TPS.TPS(U=feature_map, nx=nx, ny=ny, cp=l_stn_0_2, out_size=(height, width))
+
