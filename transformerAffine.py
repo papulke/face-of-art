@@ -48,10 +48,10 @@ def spatial_transformer_network(input_fmap, theta, is_inverse=False, mode=MODE.A
     B = tf.shape(input_fmap)[0]
     H = tf.shape(input_fmap)[1]
     W = tf.shape(input_fmap)[2]
+    theta = tf.reshape(theta, [B, 2, 3])
 
     if mode == MODE.AFFINE:
         # reshape theta to (B, 2, 3)
-        theta = tf.reshape(theta, [B, 2, 3])
 
         if is_inverse:
             """
@@ -69,11 +69,14 @@ def spatial_transformer_network(input_fmap, theta, is_inverse=False, mode=MODE.A
             sin_a = theta[:, 1, 0]
             inv_theta = [[cos_a, sin_a, -Tx*cos_a-Ty*sin_a],
                          [-sin_a, cos_a, -Ty*cos_a+Tx*sin_a]]
+            # use the inverse transform as the actual transform
             theta = inv_theta
+            theta = tf.reshape(theta, [B, 2, 3])
 
-        batch_grids = affine_grid_generator(H, W, theta)
     else:
         raise ValueError("given MODE not supported")
+
+    batch_grids = affine_grid_generator(H, W, theta)
 
     # generate grids of same size or upsample/downsample if specified
     # if out_dims:
@@ -95,13 +98,11 @@ def get_pixel_value(img, x, y):
     """
     Utility function to get pixel value for coordinate
     vectors x and y from a  4D tensor image.
-
     Input
     -----
     - img: tensor of shape (B, H, W, C)
     - x: flattened tensor of shape (B*H*W,)
     - y: flattened tensor of shape (B*H*W,)
-
     Returns
     -------
     - output: tensor of shape (B, H, W, C)
@@ -126,26 +127,21 @@ def affine_grid_generator(height, width, theta):
     used with the bilinear sampler on the input feature
     map, will create an output feature map that is an
     affine transformation [1] of the input feature map.
-
     Input
     -----
     - height: desired height of grid/output. Used
       to downsample or upsample.
-
     - width: desired width of grid/output. Used
       to downsample or upsample.
-
     - theta: affine transform matrices of shape (num_batch, 2, 3).
       For each image in the batch, we have 6 theta parameters of
       the form (2x3) that define the affine transformation T.
-
     Returns
     -------
     - normalized grid (-1, 1) of shape (num_batch, 2, H, W).
       The 2nd dimension has 2 components: (x, y) which are the
       sampling points of the original image for each point in the
       target image.
-
     Note
     ----
     [1]: the affine transformation allows cropping, translation,
@@ -184,53 +180,18 @@ def affine_grid_generator(height, width, theta):
     return batch_grids
 
 
-def tps_grid_generator(width, height, theta, mat_U):
-    num_batch = tf.shape(theta)[0]
-
-    # create normalized 2D grid
-    x = tf.linspace(-1.0, 1.0, width)
-    y = tf.linspace(-1.0, 1.0, height)
-    x_t, y_t = tf.meshgrid(x, y)
-
-    # flatten
-    x_t_flat = tf.reshape(x_t, [-1])
-    y_t_flat = tf.reshape(y_t, [-1])
-
-    # reshape to [x_t, y_t , 1] - (homogeneous form)
-    ones = tf.ones_like(x_t_flat)
-    sampling_grid = tf.stack([x_t_flat, y_t_flat, ones])
-
-    # repeat grid num_batch times
-    sampling_grid = tf.expand_dims(sampling_grid, axis=0)
-    sampling_grid = tf.tile(sampling_grid, tf.stack([num_batch, 1, 1]))
-
-    # cast to float32 (required for matmul)
-    theta = tf.cast(theta, 'float32')
-    sampling_grid = tf.cast(sampling_grid, 'float32')
-
-    # transform the sampling grid - batch multiply
-    batch_grids = tf.matmul(theta, sampling_grid)
-    # batch grid has shape (num_batch, 2, H*W)
-
-    # reshape to (num_batch, H, W, 2)
-    batch_grids = tf.reshape(batch_grids, [num_batch, 2, height, width])
-
-
 def bilinear_sampler(img, x, y):
     """
     Performs bilinear sampling of the input images according to the
     normalized coordinates provided by the sampling grid. Note that
     the sampling is done identically for each channel of the input.
-
     To test if the function works properly, output image should be
     identical to input image when theta is initialized to identity
     transform.
-
     Input
     -----
     - img: batch of images in (B, H, W, C) layout.
     - grid: x, y which is the output of affine_grid_generator.
-
     Returns
     -------
     - out: interpolated images according to grids. Same size as grid.
