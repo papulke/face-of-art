@@ -1106,16 +1106,14 @@ class DeepHeatmapsModel(object):
 
     def stn(self, feature_map, weights_init, bias_init, reuse):
         nx = ny = 48
-        height = feature_map.shape[1].value
-        width = feature_map.shape[2].value
-
+        out_size = 6  # 6 for affine, nx*ny*2 for tps
         l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=64,
                                    conv_ker_init=weights_init, conv_bias_init=bias_init,
                                    reuse=reuse, var_scope='conv_stn_0_0')
         l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=32,
                                    conv_ker_init=weights_init, conv_bias_init=bias_init,
                                    reuse=reuse, var_scope='conv_stn_0_1')
-        l_stn_0_2 = fc(l_stn_0_1, out_size=nx*ny*2, weights_initializer=weights_init, biases_initializer=bias_init,
+        l_stn_0_2 = fc(l_stn_0_1, out_size=out_size, weights_initializer=weights_init, biases_initializer=bias_init,
                        reuse=reuse, var_scope='conv_stn_0_2')
         self.theta = l_stn_0_2
         return trnsfrmr.spatial_transformer_network(feature_map, theta=self.theta)
