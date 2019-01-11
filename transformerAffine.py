@@ -70,8 +70,7 @@ def spatial_transformer_network(input_fmap, theta, is_inverse=False, mode=MODE.A
             inv_theta = [[cos_a, sin_a, -Tx*cos_a-Ty*sin_a],
                          [-sin_a, cos_a, -Ty*cos_a+Tx*sin_a]]
             # use the inverse transform as the actual transform
-            theta = inv_theta
-            theta = tf.reshape(theta, [B, 2, 3])
+            theta = tf.transpose(inv_theta, perm=[2, 0, 1])
 
     else:
         raise ValueError("given MODE not supported")
