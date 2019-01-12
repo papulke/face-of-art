@@ -62,7 +62,7 @@ def spatial_transformer_network(input_fmap, theta, is_inverse=False, mode=MODE.A
             inverse affine transformation:
             [cos(a) sin(a) -Tx*cos(a)-Ty*sin(a)
             -sin(a) cos(a) -Ty*cos(a)+Tx*sin(a)]
-            """
+
             Tx = theta[:, 0, 2]
             Ty = theta[:, 1, 2]
             cos_a = theta[:, 0, 0]
@@ -71,6 +71,18 @@ def spatial_transformer_network(input_fmap, theta, is_inverse=False, mode=MODE.A
                          [-sin_a, cos_a, -Ty*cos_a+Tx*sin_a]]
             # use the inverse transform as the actual transform
             theta = tf.transpose(inv_theta, perm=[2, 0, 1])
+            """
+            v_ones = tf.ones(B)
+            v_zeros = tf.zeros(B)
+
+            last_row = [v_zeros, v_zeros, v_ones]
+            last_row = tf.transpose(last_row, perm=[1, 0])
+            last_row = tf.expand_dims(last_row, 1)
+
+            theta_3x3 = tf.concat([theta, last_row], axis=1)
+
+            theta_inv = tf.linalg.inv(theta_3x3)
+            theta = theta_inv[:, :2, :]
 
     else:
         raise ValueError("given MODE not supported")
