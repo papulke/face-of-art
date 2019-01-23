@@ -418,23 +418,23 @@ class DeepHeatmapsModel(object):
             self.nme_per_image = l2_loss_norm_eyes(self.pred_lms, self.lms)
             self.nme_loss = tf.reduce_mean(self.nme_per_image)
 
-    def predict_landmarks_in_batches(self, image_paths, session):
+    def predict_landmarks_in_batches(self, img_menpo_list, session):
 
-        num_batches = int(1.*len(image_paths)/self.batch_size)
+        num_batches = int(1.*len(img_menpo_list)/self.batch_size)
         if num_batches == 0:
-            batch_size = len(image_paths)
+            batch_size = len(img_menpo_list)
             num_batches = 1
         else:
             batch_size = self.batch_size
 
-        img_inds = np.arange(len(image_paths))
+        img_inds = np.arange(len(img_menpo_list))
 
         for j in range(num_batches):
             batch_inds = img_inds[j * batch_size:(j + 1) * batch_size]
 
             batch_images, _, _,batch_lms = \
                 load_images_landmarks_maps(
-                    self.img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
+                    img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
                     c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
                     save_landmarks=self.compute_nme)
             batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
@@ -448,14 +448,14 @@ class DeepHeatmapsModel(object):
                 all_pred_landmarks = np.concatenate((all_pred_landmarks, batch_pred_landmarks), 0)
                 all_gt_landmarks = np.concatenate((all_gt_landmarks, batch_lms), 0)
 
-        reminder = len(image_paths)-num_batches*batch_size
+        reminder = len(img_menpo_list)-num_batches*batch_size
 
         if reminder > 0:
             reminder_inds = img_inds[-reminder:]
 
             batch_images, _, _, batch_lms = \
                 load_images_landmarks_maps(
-                    self.img_menpo_list, reminder_inds, primary=False, image_size=self.image_size,
+                    img_menpo_list, reminder_inds, primary=False, image_size=self.image_size,
                     c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
                     save_landmarks=self.compute_nme)
 
@@ -1068,7 +1068,7 @@ class DeepHeatmapsModel(object):
 
             print('*** Finished Training ***')
 
-    def get_maps_image(self, test_image, reuse=None):
+    def get_maps_image(self, test_image, reuse=None, norm=False):
         self.add_placeholders()
         # build model
         pred_hm_p, pred_hm_f = self.heatmaps_network(self.images, reuse=reuse)
@@ -1080,13 +1080,80 @@ class DeepHeatmapsModel(object):
             _, model_name = os.path.split(self.test_model_path)
 
             test_image = test_image.pixels_with_channels_at_back().astype('float32')
-            if self.scale is '255':
-                test_image *= 255
-            elif self.scale is '0':
-                test_image = 2 * test_image - 1
+            if norm:
+                if self.scale is '255':
+                    test_image *= 255
+                elif self.scale is '0':
+                    test_image = 2 * test_image - 1
 
             test_image_map_small, test_image_map = sess.run(
                 [pred_hm_p, pred_hm_f], {self.images: np.expand_dims(test_image, 0)})
 
         return test_image_map_small, test_image_map
 
+    def get_landmark_predictions(self, img_list, pdm_models_dir, clm_model_path, reuse=None):
+        from pdm_clm_functions import feature_based_pdm_corr, clm_correct
+
+        jaw_line_inds = np.arange(0, 17)
+        left_brow_inds = np.arange(17, 22)
+        right_brow_inds = np.arange(22, 27)
+
+        self.add_placeholders()
+        # build model
+        pred_hm_p, pred_hm_f = self.heatmaps_network(self.images, reuse=reuse)
+
+        with tf.Session(config=self.config) as sess:
+            # load trained parameters
+            saver = tf.train.Saver()
+            saver.restore(sess, self.test_model_path)
+            _, model_name = os.path.split(self.test_model_path)
+            e_list = []
+            ect_list = []
+            ecp_list = []
+            ecpt_list = []
+            ecptp_jaw_list = []
+            ecptp_out_list = []
+            for test_image in img_list:
+                if test_image.n_channels <3:
+                    test_image_map = sess.run(
+                        pred_hm_f, {self.images: np.expand_dims(
+                            gray2rgb(test_image.pixels_with_channels_at_back()).astype('float32'), 0)})
+                    init_lms = heat_maps_to_landmarks(np.squeeze(test_image_map))
+                else:
+                    test_image_map = sess.run(
+                        pred_hm_f, {self.images: np.expand_dims(
+                            test_image.pixels_with_channels_at_back().astype('float32'), 0)})
+                    init_lms = heat_maps_to_landmarks(np.squeeze(test_image_map))
+
+                p_pdm_lms = feature_based_pdm_corr(lms_init=init_lms, models_dir=pdm_models_dir, train_type='basic')
+                pdm_clm_lms = clm_correct(
+                    clm_model_path=clm_model_path, image=test_image, map=test_image_map, lms_init=p_pdm_lms)
+
+                ect_lms = clm_correct(
+                    clm_model_path=clm_model_path, image=test_image, map=test_image_map, lms_init=init_lms)
+
+                ecptp_out = p_pdm_lms.copy()
+                ecptp_out[left_brow_inds] = pdm_clm_lms[left_brow_inds]
+                ecptp_out[right_brow_inds] = pdm_clm_lms[right_brow_inds]
+                ecptp_out[jaw_line_inds] = pdm_clm_lms[jaw_line_inds]
+
+                ecptp_jaw = p_pdm_lms.copy()
+                ecptp_jaw[jaw_line_inds] = pdm_clm_lms[jaw_line_inds]
+
+                ecptp_jaw_list.append(ecptp_jaw) # E + p-correction + p-tuning (jaw)
+                ecptp_out_list.append(ecptp_out)  # E + p-correction + p-tuning (outline)
+                ect_list.append(ect_lms)  # ECT prediction
+                e_list.append(init_lms)  # init prediction from heatmap network (E)
+                ecp_list.append(p_pdm_lms)  # init prediction + part pdm correction (ECp)
+                ecpt_list.append(pdm_clm_lms)  # init prediction + part pdm correction + global tuning (ECpT)
+
+            pred_dict = {
+                'E': e_list,
+                'ECp': ecp_list,
+                'ECpT': ecpt_list,
+                'ECT': ect_list,
+                'ECpTp_jaw': ecptp_jaw_list,
+                'ECpTp_out': ecptp_out_list
+            }
+
+            return pred_dict

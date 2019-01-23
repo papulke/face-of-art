@@ -242,14 +242,15 @@ def AUC(errors, max_error, step_error=0.0001):
 
 
 def print_nme_statistics(
-        errors, model_path, network_type, test_data, max_error=0.08, log_path='', save_log=True, plot_ced=True):
+        errors, model_path, network_type, test_data, max_error=0.08, log_path='', save_log=True, plot_ced=True,
+        norm='interocular distance'):
     auc, failures = AUC(errors, max_error=max_error)
 
     print ("\n****** NME statistics for " + network_type + " Network ******\n")
     print ("* model path: " + model_path)
     print ("* dataset: " + test_data + ' set')
 
-    print ("\n* Normalized mean error (percentage of eye distance): %.2f" % (100 * np.mean(errors)))
+    print ("\n* Normalized mean error (percentage of "+norm+"): %.2f" % (100 * np.mean(errors)))
     print ("\n* AUC @ %.2f: %.2f" % (max_error, 100 * auc))
     print ("\n* failure rate @ %.2f: %.2f" % (max_error, 100 * failures) + '%')
 
@@ -261,7 +262,7 @@ def print_nme_statistics(
             legend_entries=[network_type],
             marker_style=['s'],
             marker_size=7,
-            x_label='Normalised Point-to-Point Error\n(interocular distance)\n*' + test_data + ' set*',
+            x_label='Normalised Point-to-Point Error\n('+norm+')\n*' + test_data + ' set*',
         )
 
     if save_log:
@@ -272,7 +273,7 @@ def print_nme_statistics(
             f.write(b"************************************************")
             f.write(("\n\n* model path: " + str(model_path)).encode())
             f.write(("\n\n* dataset: " + str(test_data) + ' set').encode())
-            f.write(b"\n\n* Normalized mean error (percentage of eye distance): %.2f" % (100 * np.mean(errors)))
+            f.write(b"\n\n* Normalized mean error (percentage of "+norm+"): %.2f" % (100 * np.mean(errors)))
             f.write(b"\n\n* AUC @ %.2f: %.2f" % (max_error, 100 * auc))
             f.write(("\n\n* failure rate @ %.2f: %.2f" % (max_error, 100 * failures) + '%').encode())
         if plot_ced:
@@ -283,14 +284,15 @@ def print_nme_statistics(
         print ('\nlog path: ' + log_path)
 
 
-def print_ced_compare_methods(method_errors,method_names,test_data,log_path='', save_log=True):
+def print_ced_compare_methods(
+        method_errors,method_names,test_data,log_path='', save_log=True, norm='interocular distance'):
     plt.yticks(np.linspace(0, 1, 11))
     plot_cumulative_error_distribution(
         [list(err) for err in list(method_errors)],
         legend_entries=list(method_names),
         marker_style=['s'],
         marker_size=7,
-        x_label='Normalised Point-to-Point Error\n(interocular distance)\n*'+test_data+' set*',
+        x_label='Normalised Point-to-Point Error\n('+norm+')\n*'+test_data+' set*'
     )
     if save_log:
         plt.savefig(os.path.join(log_path,'nme_ced_on_'+test_data+'_set.png'), bbox_inches='tight')
