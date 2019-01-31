@@ -53,7 +53,8 @@ flags.DEFINE_float('win_mult', 3.33335, 'gaussian filter size for approx maps: 2
 
 # optimization parameters
 flags.DEFINE_float('l_weight_primary', 1., 'primary loss weight')
-flags.DEFINE_float('l_weight_fusion', 3., 'fusion loss weight')
+flags.DEFINE_float('l_weight_fusion', 0., 'fusion loss weight')
+flags.DEFINE_float('l_weight_upsample', 3., 'upsample loss weight')
 flags.DEFINE_integer('train_iter', 100000, 'maximum training iterations')
 flags.DEFINE_integer('batch_size', 6, "batch_size")
 flags.DEFINE_float('learning_rate', 1e-4, "initial learning rate")
@@ -110,7 +111,8 @@ def main(_):
 
         model = DeepHeatmapsModel(
             mode='TRAIN', train_iter=FLAGS.train_iter, batch_size=FLAGS.batch_size, learning_rate=param,
-            l_weight_primary=FLAGS.l_weight_primary, l_weight_fusion=FLAGS.l_weight_fusion, reg=FLAGS.reg,
+            l_weight_primary=FLAGS.l_weight_primary, l_weight_fusion=FLAGS.l_weight_fusion,
+            l_weight_upsample=FLAGS.l_weight_upsample, reg=FLAGS.reg,
             adam_optimizer=FLAGS.adam_optimizer, momentum=FLAGS.momentum, step=FLAGS.step, gamma=FLAGS.gamma,
             weight_initializer=FLAGS.weight_initializer, weight_initializer_std=FLAGS.weight_initializer_std,
             bias_initializer=FLAGS.bias_initializer, image_size=FLAGS.image_size, c_dim=FLAGS.c_dim,

@@ -16,7 +16,7 @@ class DeepHeatmapsModel(object):
     """facial landmark localization Network"""
 
     def __init__(self, mode='TRAIN', train_iter=100000, batch_size=10, learning_rate=1e-3, l_weight_primary=1.,
-                 l_weight_fusion=3., adam_optimizer=True, momentum=0.95, step=100000, gamma=0.1, reg=0,
+                 l_weight_fusion=1.,l_weight_upsample=3.,adam_optimizer=True,momentum=0.95,step=100000, gamma=0.1,reg=0,
                  weight_initializer='xavier', weight_initializer_std=0.01, bias_initializer=0.0, image_size=256,c_dim=3,
                  num_landmarks=68, sigma=1.5, scale=1, margin=0.25, bb_type='gt', approx_maps=True, win_mult=3.33335,
                  augment_basic=True, basic_start=0, augment_texture=False, p_texture=0., augment_geom=False, p_geom=0.,
@@ -87,6 +87,7 @@ class DeepHeatmapsModel(object):
         self.reg = reg  # weight decay scale
         self.l_weight_primary = l_weight_primary  # primary loss weight
         self.l_weight_fusion = l_weight_fusion  # fusion loss weight
+        self.l_weight_upsample = l_weight_upsample  # upsample loss weight
 
         self.weight_initializer = weight_initializer  # random_normal or xavier
         self.weight_initializer_std = weight_initializer_std
@@ -325,23 +326,23 @@ class DeepHeatmapsModel(object):
 
                     l_fsn_4 = conv_relu(l_fsn_3, 1, 256, conv_ker_init=weight_initializer,
                                         conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_4')
-                    l_fsn_5 = conv(l_fsn_4, 1, self.num_landmarks, conv_ker_init=weight_initializer,
+                    fusion_out = conv(l_fsn_4, 1, self.num_landmarks, conv_ker_init=weight_initializer,
                                    conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_5')
 
                 with tf.name_scope('upsample_net'):
 
-                    out = deconv(l_fsn_5, 8, self.num_landmarks, conv_stride=4,
+                    out = deconv(fusion_out, 8, self.num_landmarks, conv_stride=4,
                                  conv_ker_init=deconv2d_bilinear_upsampling_initializer(
                                      [8, 8, self.num_landmarks, self.num_landmarks]), conv_bias_init=bias_init,
                                  reuse=reuse, var_scope='deconv_1')
 
                 self.all_layers = [l1, l2, l3, l4, l5, l6, l7, primary_out, l_fsn_1, l_fsn_2, l_fsn_3, l_fsn_4,
-                                   l_fsn_5, out]
+                                   fusion_out, out]
 
-                return primary_out, out
+                return primary_out, fusion_out, out
 
     def build_model(self):
-        self.pred_hm_p, self.pred_hm_f = self.heatmaps_network(self.images,name='heatmaps_prediction')
+        self.pred_hm_p, self.pred_hm_f, self.pred_hm_u = self.heatmaps_network(self.images,name='heatmaps_prediction')
 
     def build_hm_generator(self):  # TODO: remove
 
@@ -398,11 +399,15 @@ class DeepHeatmapsModel(object):
 
         if self.mode is 'TRAIN':
             primary_maps_diff = self.pred_hm_p - self.heatmaps_small
-            fusion_maps_diff = self.pred_hm_f - self.heatmaps
+            fusion_maps_diff = self.pred_hm_f - self.heatmaps_small
+            upsample_maps_diff = self.pred_hm_u - self.heatmaps
 
             self.l2_primary = tf.reduce_mean(tf.square(primary_maps_diff))
             self.l2_fusion = tf.reduce_mean(tf.square(fusion_maps_diff))
-            self.total_loss = 1000.*(self.l_weight_primary * self.l2_primary + self.l_weight_fusion * self.l2_fusion)
+            self.l2_upsample = tf.reduce_mean(tf.square(upsample_maps_diff))
+
+            self.total_loss = 1000.*(self.l_weight_primary * self.l2_primary + self.l_weight_fusion * self.l2_fusion +
+                                     self.l_weight_upsample * self.l2_upsample)
 
             # add weight decay
             self.total_loss += self.reg * tf.add_n(
@@ -437,7 +442,7 @@ class DeepHeatmapsModel(object):
                     img_menpo_list, batch_inds, primary=False, image_size=self.image_size,
                     c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
                     save_landmarks=self.compute_nme)
-            batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
+            batch_maps_pred = session.run(self.pred_hm_u, {self.images: batch_images})
             batch_pred_landmarks = batch_heat_maps_to_landmarks(
                 batch_maps_pred, batch_size=batch_size, image_size=self.image_size, num_landmarks=self.num_landmarks)
 
@@ -459,7 +464,7 @@ class DeepHeatmapsModel(object):
                     c_dim=self.c_dim, num_landmarks=self.num_landmarks, scale=self.scale, sigma=self.sigma,
                     save_landmarks=self.compute_nme)
 
-            batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
+            batch_maps_pred = session.run(self.pred_hm_u, {self.images: batch_images})
             batch_pred_landmarks = batch_heat_maps_to_landmarks(
                 batch_maps_pred, batch_size=reminder, image_size=self.image_size, num_landmarks=self.num_landmarks)
 
@@ -481,7 +486,7 @@ class DeepHeatmapsModel(object):
         for j in range(num_batches):
 
             batch_images = images[j * batch_size:(j + 1) * batch_size,:,:,:]
-            batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
+            batch_maps_pred = session.run(self.pred_hm_u, {self.images: batch_images})
             if self.allocate_once:
                 batch_heat_maps_to_landmarks_alloc_once(
                     batch_maps=batch_maps_pred, batch_landmarks=self.valid_landmarks_pred[j * batch_size:(j + 1) * batch_size, :, :],
@@ -497,7 +502,7 @@ class DeepHeatmapsModel(object):
         reminder = num_images-num_batches*batch_size
         if reminder > 0:
             batch_images = images[-reminder:, :, :, :]
-            batch_maps_pred = session.run(self.pred_hm_f, {self.images: batch_images})
+            batch_maps_pred = session.run(self.pred_hm_u, {self.images: batch_images})
 
             if self.allocate_once:
                 batch_heat_maps_to_landmarks_alloc_once(
@@ -517,8 +522,10 @@ class DeepHeatmapsModel(object):
 
         l2_primary = tf.summary.scalar('l2_primary', self.l2_primary)
         l2_fusion = tf.summary.scalar('l2_fusion', self.l2_fusion)
+        l2_upsample = tf.summary.scalar('l2_upsample', self.l2_upsample)
+
         l_total = tf.summary.scalar('l_total', self.total_loss)
-        self.batch_summary_op = tf.summary.merge([l2_primary,l2_fusion,l_total])
+        self.batch_summary_op = tf.summary.merge([l2_primary,l2_fusion,l2_upsample,l_total])
 
         if self.compute_nme:
             l_nme = tf.summary.scalar('l_nme', self.nme_loss)
@@ -606,7 +613,7 @@ class DeepHeatmapsModel(object):
                                                c_dim=self.c_dim, scale=self.scale)
 
                     batch_maps_small_pred, batch_maps_pred = sess.run(
-                        [self.pred_hm_p, self.pred_hm_f], {self.images: batch_images})
+                        [self.pred_hm_p, self.pred_hm_u], {self.images: batch_images})
 
                     batch_maps_gt = None
                     batch_maps_small_gt = None
@@ -620,7 +627,7 @@ class DeepHeatmapsModel(object):
                             save_landmarks=False)
 
                     batch_maps_small_pred, batch_maps_pred = sess.run(
-                        [self.pred_hm_p,self.pred_hm_f], {self.images: batch_images})
+                        [self.pred_hm_p,self.pred_hm_u], {self.images: batch_images})
 
                 sample_path_imgs = os.path.join(
                     self.save_sample_path, model_name +'-'+ self.test_data+'-sample-%d-to-%d-1.png' % (
@@ -895,7 +902,7 @@ class DeepHeatmapsModel(object):
 
                     # train data log
                     if self.compute_nme:
-                        batch_maps_pred = sess.run(self.pred_hm_f, {self.images: batch_images})
+                        batch_maps_pred = sess.run(self.pred_hm_u, {self.images: batch_images})
 
                         if self.allocate_once:
                             batch_heat_maps_to_landmarks_alloc_once(
@@ -970,7 +977,7 @@ class DeepHeatmapsModel(object):
 
                     batch_maps_small_pred = sess.run(self.pred_hm_p, {self.images: batch_images})
                     if not self.compute_nme:
-                        batch_maps_pred = sess.run(self.pred_hm_f,  {self.images: batch_images})
+                        batch_maps_pred = sess.run(self.pred_hm_u,  {self.images: batch_images})
                         batch_lms_pred = None
 
                     merged_img = merge_images_landmarks_maps_gt(
@@ -1011,7 +1018,7 @@ class DeepHeatmapsModel(object):
                             log_valid_images = False
 
                             batch_maps_small_pred_val,batch_maps_pred_val =\
-                                sess.run([self.pred_hm_p,self.pred_hm_f],
+                                sess.run([self.pred_hm_p,self.pred_hm_u],
                                          {self.images: self.valid_images_loaded[:self.sample_grid]})
 
                             merged_img_small = merge_images_landmarks_maps_gt(
@@ -1071,7 +1078,7 @@ class DeepHeatmapsModel(object):
     def get_maps_image(self, test_image, reuse=None, norm=False):
         self.add_placeholders()
         # build model
-        pred_hm_p, pred_hm_f = self.heatmaps_network(self.images, reuse=reuse)
+        pred_hm_p, pred_hm_f, pred_hm_u = self.heatmaps_network(self.images, reuse=reuse)
 
         with tf.Session(config=self.config) as sess:
             # load trained parameters
@@ -1086,10 +1093,10 @@ class DeepHeatmapsModel(object):
                 elif self.scale is '0':
                     test_image = 2 * test_image - 1
 
-            test_image_map_small, test_image_map = sess.run(
-                [pred_hm_p, pred_hm_f], {self.images: np.expand_dims(test_image, 0)})
+                    map_primary, map_fusion, map_upsample = sess.run(
+                [pred_hm_p, pred_hm_f, pred_hm_u], {self.images: np.expand_dims(test_image, 0)})
 
-        return test_image_map_small, test_image_map
+        return map_primary, map_fusion, map_upsample
 
     def get_landmark_predictions(self, img_list, pdm_models_dir, clm_model_path, reuse=None):
         from pdm_clm_functions import feature_based_pdm_corr, clm_correct
@@ -1100,7 +1107,7 @@ class DeepHeatmapsModel(object):
 
         self.add_placeholders()
         # build model
-        pred_hm_p, pred_hm_f = self.heatmaps_network(self.images, reuse=reuse)
+        _, _, pred_hm_u = self.heatmaps_network(self.images, reuse=reuse)
 
         with tf.Session(config=self.config) as sess:
             # load trained parameters
@@ -1116,12 +1123,12 @@ class DeepHeatmapsModel(object):
             for test_image in img_list:
                 if test_image.n_channels <3:
                     test_image_map = sess.run(
-                        pred_hm_f, {self.images: np.expand_dims(
+                        pred_hm_u, {self.images: np.expand_dims(
                             gray2rgb(test_image.pixels_with_channels_at_back()).astype('float32'), 0)})
                     init_lms = heat_maps_to_landmarks(np.squeeze(test_image_map))
                 else:
                     test_image_map = sess.run(
-                        pred_hm_f, {self.images: np.expand_dims(
+                        pred_hm_u, {self.images: np.expand_dims(
                             test_image.pixels_with_channels_at_back().astype('float32'), 0)})
                     init_lms = heat_maps_to_landmarks(np.squeeze(test_image_map))
 
