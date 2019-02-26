@@ -185,7 +185,7 @@ def augment_menpo_img_ns(img, img_dir_ns, p_ns=0):
 
     img = img.copy()
     if p_ns > 0.5:
-        ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '*'))
+        ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '_ns*'))
         num_augs = len(ns_augs)
         if num_augs > 0:
             ns_ind = np.random.randint(0, num_augs)

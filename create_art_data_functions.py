@@ -4,7 +4,6 @@ from menpo.shape import bounding_box
 from menpo.transform import Translation, Rotation
 
 
-
 def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=True):
     """basic image augmentation: random crop, rotation and horizontal flip"""
 
@@ -78,7 +77,7 @@ def augment_menpo_img_ns(img, img_dir_ns, p_ns=0, ns_ind=None):
     """texture style image augmentation using stylized copies in *img_dir_ns*"""
 
     if p_ns > 0.5:
-        ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '*'))
+        ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '_ns*'))
         num_augs = len(ns_augs)
         if num_augs > 0:
             if ns_ind is None or ns_ind >= num_augs:
@@ -92,7 +91,7 @@ def augment_menpo_img_ns_dont_apply(img, img_dir_ns, p_ns=0, ns_ind=None):
     """texture style image augmentation using stylized copies in *img_dir_ns*"""
 
     if p_ns > 0.5:
-        ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '*'))
+        ns_augs = glob(os.path.join(img_dir_ns, img.path.name.split('.')[0] + '_ns*'))
         num_augs = len(ns_augs)
         if num_augs > 0:
             if ns_ind is None or ns_ind >= num_augs:
