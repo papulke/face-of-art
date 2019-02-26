@@ -1093,7 +1093,7 @@ class DeepHeatmapsModel(object):
                 elif self.scale is '0':
                     test_image = 2 * test_image - 1
 
-                    map_primary, map_fusion, map_upsample = sess.run(
+            map_primary, map_fusion, map_upsample = sess.run(
                 [pred_hm_p, pred_hm_f, pred_hm_u], {self.images: np.expand_dims(test_image, 0)})
 
         return map_primary, map_fusion, map_upsample
