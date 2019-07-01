@@ -48,7 +48,6 @@ flags.DEFINE_float('sigma', 6, "std for heatmap generation gaussian")
 flags.DEFINE_integer('scale', 1, 'scale for image normalization 255/1/0')
 flags.DEFINE_float('margin', 0.25, 'margin for face crops - % of bb size')
 flags.DEFINE_string('bb_type', 'gt', "bb to use -  'gt':for ground truth / 'init':for face detector output")
-flags.DEFINE_bool('approx_maps', True, 'use heatmap approximation - major speed up')
 flags.DEFINE_float('win_mult', 3.33335, 'gaussian filter size for approx maps: 2 * sigma * win_mult + 1')
 
 # optimization parameters
@@ -69,13 +68,10 @@ flags.DEFINE_float('bias_initializer', 0.0, 'constant value for bias initializer
 
 # augmentation parameters
 flags.DEFINE_bool('augment_basic', True,"use basic augmentation?")
-flags.DEFINE_integer('basic_start', 0,  'min epoch to start basic augmentation')
 flags.DEFINE_bool('augment_texture', False,"use artistic texture augmentation?")
-flags.DEFINE_float('p_texture', 0., 'initial probability of artistic texture augmentation')
+flags.DEFINE_float('p_texture', 0., 'probability of artistic texture augmentation')
 flags.DEFINE_bool('augment_geom', False, "use artistic geometric augmentation?")
-flags.DEFINE_float('p_geom', 0., 'initial probability of artistic geometric augmentation')
-flags.DEFINE_integer('artistic_step', -1, 'step for increasing probability of artistic augmentation in epochs')
-flags.DEFINE_integer('artistic_start', 0, 'min epoch to start artistic augmentation')
+flags.DEFINE_float('p_geom', 0., 'probability of artistic geometric augmentation')
 
 
 FLAGS = flags.FLAGS
@@ -106,10 +102,9 @@ def main(_):
         weight_initializer=FLAGS.weight_initializer, weight_initializer_std=FLAGS.weight_initializer_std,
         bias_initializer=FLAGS.bias_initializer, image_size=FLAGS.image_size, c_dim=FLAGS.c_dim,
         num_landmarks=FLAGS.num_landmarks, sigma=FLAGS.sigma, scale=FLAGS.scale, margin=FLAGS.margin,
-        bb_type=FLAGS.bb_type, approx_maps=FLAGS.approx_maps, win_mult=FLAGS.win_mult, augment_basic=FLAGS.augment_basic,
-        basic_start=FLAGS.basic_start, augment_texture=FLAGS.augment_texture, p_texture=FLAGS.p_texture,
-        augment_geom=FLAGS.augment_geom, p_geom=FLAGS.p_geom, artistic_step=FLAGS.artistic_step,
-        artistic_start=FLAGS.artistic_start, output_dir=FLAGS.output_dir, save_model_path=save_model_path,
+        bb_type=FLAGS.bb_type, win_mult=FLAGS.win_mult, augment_basic=FLAGS.augment_basic,
+        augment_texture=FLAGS.augment_texture, p_texture=FLAGS.p_texture, augment_geom=FLAGS.augment_geom,
+        p_geom=FLAGS.p_geom, output_dir=FLAGS.output_dir, save_model_path=save_model_path,
         save_sample_path=save_sample_path, save_log_path=save_log_path, test_model_path=FLAGS.test_model_path,
         pre_train_path=FLAGS.pre_train_path, load_pretrain=FLAGS.load_pretrain, load_primary_only=FLAGS.load_primary_only,
         img_path=FLAGS.img_path, test_data=FLAGS.test_data, valid_data=FLAGS.valid_data, valid_size=FLAGS.valid_size,

@@ -7,6 +7,8 @@ from scipy.misc import imresize
 
 
 def print_training_params_to_file(init_locals):
+    """save param log file"""
+
     del init_locals['self']
     with open(os.path.join(init_locals['save_log_path'], 'Training_Parameters.txt'), 'w') as f:
         f.write('Training Parameters:\n\n')
@@ -17,6 +19,7 @@ def print_training_params_to_file(init_locals):
 # heat maps to landmarks without pre-allocation
 
 def heat_maps_to_landmarks(maps, image_size=256, num_landmarks=68):
+    # find landmarks from heatmaps (arg max on each map)
 
     landmarks = np.zeros((num_landmarks,2)).astype('float32')
 
@@ -27,6 +30,8 @@ def heat_maps_to_landmarks(maps, image_size=256, num_landmarks=68):
 
 
 def batch_heat_maps_to_landmarks(batch_maps, batch_size, image_size=256, num_landmarks=68):
+    # find landmarks from heatmaps (arg max on each map) - for multiple images
+
     batch_landmarks = np.zeros((batch_size,num_landmarks, 2)).astype('float32')
     for i in range(batch_size):
 
@@ -40,12 +45,14 @@ def batch_heat_maps_to_landmarks(batch_maps, batch_size, image_size=256, num_lan
 # heat maps to landmarks with pre-allocation
 
 def heat_maps_to_landmarks_alloc_once(maps, landmarks, image_size=256, num_landmarks=68):
+    # find landmarks from heatmaps (arg max on each map)
 
     for m_ind in range(num_landmarks):
         landmarks[m_ind, :] = np.unravel_index(maps[:, :, m_ind].argmax(), (image_size, image_size))
 
 
 def batch_heat_maps_to_landmarks_alloc_once(batch_maps, batch_landmarks, batch_size, image_size=256, num_landmarks=68):
+    # find landmarks from heatmaps (arg max on each map) - for multiple images
 
     for i in range(batch_size):
         heat_maps_to_landmarks_alloc_once(
@@ -68,6 +75,7 @@ def map_to_rgb(map_gray):
 
 
 def create_img_with_landmarks(image, landmarks, image_size=256, num_landmarks=68, scale=255, circle_size=2):
+    # add landmarks to a face image
     image = image.reshape(image_size, image_size, -1)
 
     if scale is 0:
@@ -85,6 +93,7 @@ def create_img_with_landmarks(image, landmarks, image_size=256, num_landmarks=68
 
 
 def heat_maps_to_image(maps, landmarks=None, image_size=256, num_landmarks=68):
+    # create one image from multiple heatmaps
 
     if landmarks is None:
         landmarks = heat_maps_to_landmarks(maps, image_size=image_size, num_landmarks=num_landmarks)
@@ -104,6 +113,7 @@ def heat_maps_to_image(maps, landmarks=None, image_size=256, num_landmarks=68):
 
 def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_size=256, num_landmarks=68,
                                    num_samples=9, scale=255, circle_size=2, fast=False):
+    # create image for log - containing input face images, predicted heatmaps and GT heatmaps (if exists)
 
     images = images[:num_samples]
     if maps.shape[1] is not image_size:
@@ -167,6 +177,7 @@ def merge_images_landmarks_maps_gt(images, maps, maps_gt, landmarks=None, image_
 
 
 def map_comapre_channels(images, maps1, maps2, image_size=64, num_landmarks=68, scale=255):
+    # create image for log - present one face image, along with all its heatmaps (one for each landmark)
 
         map1 = maps1[0]
         if maps2 is not None:

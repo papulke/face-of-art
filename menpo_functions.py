@@ -89,11 +89,12 @@ def center_margin_bb(bb, img_bounds, margin=0.25):
 
 
 def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size=256, normalize=True):
-    """crop face image using bounding box dictionary"""
+    """crop face image using bounding box dictionary, or GT landmarks"""
 
     name = img.path.name
     img_bounds = img.bounds()[1]
 
+    # if there is no bounding-box dict and GT landmarks are available, use it to determine the bounding box
     if bb_dictionary is None and img.has_landmarks:
         grp_name = img.landmarks.group_labels[0]
         bb_menpo = img.landmarks[grp_name].bounding_box().points
@@ -107,17 +108,18 @@ def crop_to_face_image(img, bb_dictionary=None, gt=True, margin=0.25, image_size
         bb = None
 
     if bb is not None:
+        # add margin to bounding box
         bb = center_margin_bb(bb, img_bounds, margin=margin)
-
         bb_pointcloud = PointCloud(np.array([[bb[0, 1], bb[0, 0]],
                                              [bb[0, 3], bb[0, 0]],
                                              [bb[0, 3], bb[0, 2]],
                                              [bb[0, 1], bb[0, 2]]]))
-
         face_crop = img.crop_to_pointcloud(bb_pointcloud)
     else:
+        # if there is no bounding box/landmarks, use entire image
         face_crop = img.copy()
 
+    # if face crop is not a square - pad borders with mean pixel value
     h, w = face_crop.shape
     diff = h - w
     if diff < 0:
@@ -207,6 +209,8 @@ def augment_menpo_img_geom(img, p_geom=0):
 
 
 def warp_face_image_tps(img, new_shape, lms_grp_name='PTS', warp_mode='constant'):
+    """warp image to new landmarks using TPS interpolation"""
+
     tps = ThinPlateSplines(new_shape, img.landmarks[lms_grp_name])
     try:
         img_warp = img.warp_to_shape(img.shape, tps, mode=warp_mode)
@@ -218,9 +222,11 @@ def warp_face_image_tps(img, new_shape, lms_grp_name='PTS', warp_mode='constant'
 
 
 def load_menpo_image_list(
-        img_dir, train_crop_dir, img_dir_ns, mode, bb_dictionary=None, image_size=256, margin=0.25,
-        bb_type='gt', test_data='full', augment_basic=True, augment_texture=False, p_texture=0,
-        augment_geom=False, p_geom=0, verbose=False):
+    img_dir, train_crop_dir, img_dir_ns, mode, bb_dictionary=None, image_size=256, margin=0.25,
+    bb_type='gt', test_data='full', augment_basic=True, augment_texture=False, p_texture=0,
+    augment_geom=False, p_geom=0, verbose=False):
+
+    """load images from image dir to create menpo-type image list"""
 
     def crop_to_face_image_gt(img):
         return crop_to_face_image(img, bb_dictionary, gt=True, margin=margin, image_size=image_size)
@@ -249,14 +255,15 @@ def load_menpo_image_list(
             img_set_dir = os.path.join(img_dir, train_crop_dir)
             out_image_list = mio.import_images(img_set_dir, verbose=verbose)
 
-        if augment_texture:
+        # perform image augmentation
+        if augment_texture and p_texture > 0:
             out_image_list = out_image_list.map(augment_menpo_img_ns_rand)
-        if augment_geom:
+        if augment_geom and p_geom > 0:
             out_image_list = out_image_list.map(augment_menpo_img_geom_rand)
         if augment_basic:
             out_image_list = out_image_list.map(augment_face_image)
 
-    else:
+    else:  # if mode is 'TEST', load test data
         if test_data in ['full', 'challenging', 'common', 'training', 'test']:
             img_set_dir = os.path.join(img_dir, test_data + '_set')
             out_image_list = mio.import_images(img_set_dir, verbose=verbose, normalize=False)
@@ -271,15 +278,3 @@ def load_menpo_image_list(
 
     return out_image_list
 
-
-def reload_menpo_image_list(
-        img_dir, train_crop_dir, img_dir_ns, mode, train_inds, image_size=256,
-        augment_basic=True, augment_texture=False, p_texture=0, augment_geom=False, p_geom=0, verbose=False):
-    img_menpo_list = load_menpo_image_list(
-        img_dir=img_dir, train_crop_dir=train_crop_dir, img_dir_ns=img_dir_ns, mode=mode, image_size=image_size,
-        augment_basic=augment_basic, augment_texture=augment_texture, p_texture=p_texture, augment_geom=augment_geom,
-        p_geom=p_geom,verbose=verbose)
-
-    img_menpo_list_train = img_menpo_list[train_inds]
-
-    return img_menpo_list_train
