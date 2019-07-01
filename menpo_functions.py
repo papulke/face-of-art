@@ -206,10 +206,10 @@ def augment_menpo_img_geom(img, p_geom=0):
     return img
 
 
-def warp_face_image_tps(img, new_shape, lms_grp_name='PTS'):
+def warp_face_image_tps(img, new_shape, lms_grp_name='PTS', warp_mode='constant'):
     tps = ThinPlateSplines(new_shape, img.landmarks[lms_grp_name])
     try:
-        img_warp = img.warp_to_shape(img.shape, tps)
+        img_warp = img.warp_to_shape(img.shape, tps, mode=warp_mode)
         img_warp.landmarks[lms_grp_name] = new_shape
         return img_warp
     except np.linalg.linalg.LinAlgError as err:

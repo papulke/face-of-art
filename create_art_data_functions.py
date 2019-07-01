@@ -4,7 +4,7 @@ from menpo.shape import bounding_box
 from menpo.transform import Translation, Rotation
 
 
-def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=True):
+def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=True, warp_mode='constant'):
     """basic image augmentation: random crop, rotation and horizontal flip"""
 
     #from menpo
@@ -66,7 +66,7 @@ def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=
         shape = round_image_shape(rotated_bbox.range() + 1, 'round')
 
         img = img.warp_to_shape(
-            shape, trans.pseudoinverse(), warp_landmarks=True, mode='nearest')
+            shape, trans.pseudoinverse(), warp_landmarks=True, mode=warp_mode)
 
     img = img.resize([image_size, image_size])
 
