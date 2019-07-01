@@ -1133,11 +1133,17 @@ class DeepHeatmapsModel(object):
                     init_lms = heat_maps_to_landmarks(np.squeeze(test_image_map))
 
                 p_pdm_lms = feature_based_pdm_corr(lms_init=init_lms, models_dir=pdm_models_dir, train_type='basic')
-                pdm_clm_lms = clm_correct(
-                    clm_model_path=clm_model_path, image=test_image, map=test_image_map, lms_init=p_pdm_lms)
+                try:  # clm may not converge
+                    pdm_clm_lms = clm_correct(
+                        clm_model_path=clm_model_path, image=test_image, map=test_image_map, lms_init=p_pdm_lms)
+                except:
+                    pdm_clm_lms = p_pdm_lms.copy()
 
-                ect_lms = clm_correct(
-                    clm_model_path=clm_model_path, image=test_image, map=test_image_map, lms_init=init_lms)
+                try:  # clm may not converge
+                    ect_lms = clm_correct(
+                        clm_model_path=clm_model_path, image=test_image, map=test_image_map, lms_init=init_lms)
+                except:
+                    ect_lms = p_pdm_lms.copy()
 
                 ecptp_out = p_pdm_lms.copy()
                 ecptp_out[left_brow_inds] = pdm_clm_lms[left_brow_inds]
