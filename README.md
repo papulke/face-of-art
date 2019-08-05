@@ -12,20 +12,20 @@ Code for the landmark detection framework described in [The Face of Art: Landmar
 ### Download
 download model from [here](https://www.dropbox.com/sh/hrxcyug1bmbj6cs/AAAxq_zI5eawcLjM8zvUwaXha?dl=0)
 
-download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0) (**TODO:** remove before publish)
-
+<!-- download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0) (**TODO:** remove before publish)
+\
 for training you will need to download the following folders:
 * training_set
 * Bounding_Boxes
 * crop_gt_margin_0.25 (to save time on cropping data to ground-truth face bounding-box with 25% margin)
 * crop_gt_margin_0.25_ns (for using artistic texture augmentation)
-
+\
 for testing you will need:
 * full_set
 * common_set
 * challenging_set
 * test_set
-* Bounding_Boxes
+* Bounding_Boxes-->
 
 
 ### Install
