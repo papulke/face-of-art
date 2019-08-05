@@ -342,7 +342,8 @@ def deform_scale_face(lms, p_scale=0, pad=5):
         lms_def_scale = deform_part(lms, part_inds, scale_y=scale_y, scale_x=scale_x, shift_ver=0., shift_horiz=0.)
 
         # check for spatial errors
-        error2 = np.sum(lms >= 256) + np.sum(lms < 0)
+        # error2 = np.sum(lms >= 256) + np.sum(lms < 0)
+        error2 = np.sum(lms_def_scale >= 256) + np.sum(lms_def_scale < 0)  # TODO: check if need to fix
         error1 = len(np.unique((lms_def_scale).astype('int'), axis=0)) != len(lms_def_scale)
         error = error1 + error2
         if error:
