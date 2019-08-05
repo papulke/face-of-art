@@ -159,6 +159,8 @@ example:
 python main_fusion.py --mode='TEST' --test_model_path='model/deep_heatmaps-100000' \
 --test_data='challenging'
 ```
+
+TODO: add details for: evaluate_model.py, evaluate_and_compare_multiple_models.py
 <!-- #### Evaluating using evaluate_model
 Using this option you can get normalized mean error statistics of the model on the selected test data.
 This option will provide AUC measure, failure rate and CED plot.
@@ -210,5 +212,5 @@ python evaluate_and_compare_multiple_models.py --models_dir='models_to_compare' 
 * [menpofit](https://github.com/menpo/menpofit)
 * [ect](https://github.com/HongwenZhang/ECT-FaceAlignment)
 * [mdm](https://github.com/trigeorgis/mdm)
-* neural style transfer
+* [style transfer implementation](https://github.com/woodrush/neural-art-tf)
 * [painter-by-numbers dataset](https://www.kaggle.com/c/painter-by-numbers/data)
