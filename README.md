@@ -9,7 +9,8 @@
 
 ### Download
 download model from [here](https://www.dropbox.com/sh/hrxcyug1bmbj6cs/AAAxq_zI5eawcLjM8zvUwaXha?dl=0)
-download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0) (TODO: remove before publish)
+
+download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0) (**TODO:** remove before publish)
 
 for training you will need to download the following folders:
 * training_set
@@ -160,7 +161,7 @@ python main_fusion.py --mode='TEST' --test_model_path='model/deep_heatmaps-10000
 --test_data='challenging'
 ```
 
-TODO: add details for: evaluate_model.py, evaluate_and_compare_multiple_models.py
+**TODO:** add details for: evaluate_model.py, evaluate_and_compare_multiple_models.py
 <!-- #### Evaluating using evaluate_model
 Using this option you can get normalized mean error statistics of the model on the selected test data.
 This option will provide AUC measure, failure rate and CED plot.
