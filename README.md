@@ -1,4 +1,4 @@
-# Using deep Face Heat Maps & Artistic Augmentation for Facial Landmark Detection in Art
+# The Face of Art: Landmark Detection and Geometric Style in Portraits
 
 ## Getting Started
 
@@ -7,9 +7,9 @@
 * python
 * anaconda
 
-### Download datasets
-
-download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0)
+### Download
+download model from [here](https://www.dropbox.com/sh/hrxcyug1bmbj6cs/AAAxq_zI5eawcLjM8zvUwaXha?dl=0)
+download datasets from [here](https://www.dropbox.com/sh/3r481u61mqd0pso/AAAyuhdUX0tomYdsYtn6QXZfa?dl=0) (TODO: remove before publish)
 
 for training you will need to download the following folders:
 * training_set
@@ -78,7 +78,7 @@ You can add the following flags:
 * sample_to_log - samples will be saved to tensorboard log (bool)
 * valid_size - number of validation images to run
 * log_valid_every - evaluate on valid set every X epochs
-* debug_data_size - subset data size to test in debug mode
+* debug_data_size - subset data size for debug mode
 * debug - run in debug mode: use subset of the data
 
 #### define paths
@@ -99,7 +99,7 @@ You can add the following flags:
 #### pretrain parameters (for fine-tuning / resume training)
 * pre_train_path - pretrained model path
 * load_pretrain - load pretrained weight (bool)
-* load_primary_only - fine-tuning using only primary network weights (bool) (only in fusion net)
+* load_primary_only - fine-tuning using only primary network weights (bool)
 
 #### input data parameters
 * image_size - image size
@@ -110,11 +110,12 @@ You can add the following flags:
 * margin - margin for face crops - % of bb size
 * bb_type - bb to use ('gt':for ground truth / 'init':for face detector output)
 * approx_maps - use heatmap approximation - major speed up
-* win_mult - gaussian filter size for approx maps: 2 * sigma * win_mult + 1
+* win_mult - gaussian filter size for heatmaps approximation will be calculated by: 2 * sigma * win_mult + 1
 
 #### optimization parameters
-* l_weight_primary - primary loss weight (only in fusion net)
-* l_weight_fusion - fusion loss weight (only in fusion net)
+* l_weight_primary - primary loss weight
+* l_weight_fusion - fusion loss weight
+* l_weight_upsample - upsample loss weight
 * train_iter - maximum training iterations
 * batch_size - batch size
 * learning_rate - initial learning rate
@@ -129,16 +130,13 @@ You can add the following flags:
 
 #### augmentation parameters
 * augment_basic - use basic augmentation (bool)
-* basic_start - min epoch to start basic augmentation
 * augment_texture - use artistic texture augmentation (bool)
-* p_texture - initial probability of artistic texture augmentation
+* p_texture - probability of artistic texture augmentation
 * augment_geom - use artistic geometric augmentation (bool)
-* p_geom - initial probability of artistic geometric augmentation
-* artistic_step - step for increasing probability of artistic augmentation in epochs
-* artistic_start - min epoch to start artistic augmentation
+* p_geom - probability of artistic geometric augmentation
 
 
-example for training a model with texture augmentation (100% of images) and geometric augmentation (70% of images):
+example for training a model with texture augmentation (100% of images) and geometric augmentation (~70% of images):
 ```
 python main_fusion.py --mode='TRAIN' --output_dir='test_artistic_aug' --augment_geom=True \
 --augment_texture=True --p_texture=1. --p_geom=0.7
@@ -147,7 +145,7 @@ python main_fusion.py --mode='TRAIN' --output_dir='test_artistic_aug' --augment_
 ### Testing 
 
 There are 3 options to test our models:
-1. using main_fusion.py / main_primary.py
+1. using main_fusion.py
 2. using evaluate_model.py
 3. using evaluate_and_compare_multiple_models.py
 
@@ -158,20 +156,17 @@ If ground-truth landmarks are provided, the normalized mean error will be calcul
 
 example:
 ```
-python main_primary.py --mode='TEST' --test_model_path='model/deep_heatmaps-100000' \
+python main_fusion.py --mode='TEST' --test_model_path='model/deep_heatmaps-100000' \
 --test_data='challenging'
 ```
-#### Evaluating using evaluate_model
-
+<!-- #### Evaluating using evaluate_model
 Using this option you can get normalized mean error statistics of the model on the selected test data.
 This option will provide AUC measure, failure rate and CED plot.
-
 You can add the following flags:
 #### define paths
 * img_dir - data directory (containing subdirectories of datasets and BBs)
 * test_data - test set to use full/common/challenging/test
 * model_path - pretrained model path
-
 #### parameters used to train network
 * network_type - network architecture 'Fusion'/'Primary'
 * image_size - image size
@@ -180,40 +175,33 @@ You can add the following flags:
 * scale - scale for image normalization 255/1/0
 * margin - margin for face crops - % of bb size
 * bb_type - bb to use ('gt':for ground truth / 'init':for face detector output)
-
 #### choose batch size and debug data size
 * batch_size - batch size
 * debug - run in debug mode - use subset of the data (bool)
 * debug_data_size - subset data size to test in debug mode
-
 #### statistics parameters
 * max_error - error threshold to be considered as failure
 * save_log - save statistics to log_dir (bool)
 * log_path - directory for saving NME statistics
-
 example:
 ```
 python evaluate_model.py --model_path='model/deep_heatmaps-100000' --test_data='full' \
 --network_type='Fusion' --max_error=0.07
 ```
-
 #### Evaluating using evaluate_and_compare_multiple_models
-
 Using this option you can create a unified CED plot of multiple input models.
 in addition, AUC measures and failure rates will be printed to screen.
-
 ** NOTICE: 
 * Each model should be placed in a different directory (using a meaningful name e.g: "fusion_lr_1e-6"/"primary_lr_1e-4"/"fusion_aug_texture" etc.). including the word primary/fusion in the directory names is a must!
 * Each model directory should contain one saved model.
 * All model directories should be placed in one directory (e.g: "models_to_compare")
 * It is assumed that model meta files is provided
 * It is assumed that all models were trained with the same: bb_type, scale, margin, num_landmarks, image_size and c_dim
-
 example:
 ```
 python evaluate_and_compare_multiple_models.py --models_dir='models_to_compare' \
 --test_data='test'  --max_error=0.08 --log_path='logs/nme_statistics'
-```
+```--> 
 
 
 ## Acknowledgments
@@ -223,5 +211,4 @@ python evaluate_and_compare_multiple_models.py --models_dir='models_to_compare' 
 * [ect](https://github.com/HongwenZhang/ECT-FaceAlignment)
 * [mdm](https://github.com/trigeorgis/mdm)
 * neural style transfer
-* artists?
-* art dataset kaggle
+* [painter-by-numbers dataset](https://www.kaggle.com/c/painter-by-numbers/data)
