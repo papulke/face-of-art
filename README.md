@@ -147,23 +147,23 @@ python main_fusion.py --mode='TRAIN' --output_dir='test_artistic_aug' --augment_
 
 ### Testing 
 
-There are 3 options to test our models:
+<!--There are 3 options to test our models:
 1. using main_fusion.py
 2. using evaluate_model.py
 3. using evaluate_and_compare_multiple_models.py
-
+\
 #### Evaluating using main files
-
+\
 Using this option you can sample heat-maps + predictions of the selected test data.
 If ground-truth landmarks are provided, the normalized mean error will be calculated.
-
+\
 example:
 ```
 python main_fusion.py --mode='TEST' --test_model_path='model/deep_heatmaps-100000' \
 --test_data='challenging'
-```
+```-->
 
-**TODO:** add details for: evaluate_model.py, evaluate_and_compare_multiple_models.py
+**TODO:** add details for testing options
 <!-- #### Evaluating using evaluate_model
 Using this option you can get normalized mean error statistics of the model on the selected test data.
 This option will provide AUC measure, failure rate and CED plot.
