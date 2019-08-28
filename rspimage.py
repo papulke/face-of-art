@@ -1,4 +1,4 @@
-# from ECT
+# copied from ECT: https://github.com/HongwenZhang/ECT-FaceAlignment
 
 import numpy as np
 import math

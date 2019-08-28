@@ -21,6 +21,8 @@ def sigmoid(x, rate, offset):
 
 
 def calculate_evidence(patch_responses, rate=0.25, offset=20):
+    # from ECT: https://github.com/HongwenZhang/ECT-FaceAlignment
+
     rspmapShape = patch_responses[0, 0, ...].shape
     n_points = patch_responses.shape[0]
 
@@ -61,6 +63,8 @@ def calculate_evidence(patch_responses, rate=0.25, offset=20):
 
 
 def get_patches_around_landmarks(heat_maps, menpo_shape, patch_size=(30,30), image_shape=256):
+    # from ECT: https://github.com/HongwenZhang/ECT-FaceAlignment
+
     padH = int(image_shape / 2)
     padW = int(image_shape / 2)
 
@@ -78,6 +82,7 @@ def get_patches_around_landmarks(heat_maps, menpo_shape, patch_size=(30,30), ima
 
 
 def pdm_correct(init_shape, pdm_model, part_inds=None):
+    """ correct landmarks using pdm (point distribution model)"""
     pdm_model.set_target(PointCloud(init_shape))
     if part_inds is None:
         return pdm_model.target.points
@@ -86,6 +91,7 @@ def pdm_correct(init_shape, pdm_model, part_inds=None):
 
 
 def weighted_pdm_transform(input_pdm_model, patches, shape, inirho=20):
+    # from ECT: https://github.com/HongwenZhang/ECT-FaceAlignment
     weight = calculate_evidence(patches, rate=0.5, offset=10).reshape((1, -1))
     pdm_model = input_pdm_model.copy()
 
@@ -106,6 +112,7 @@ def weighted_pdm_transform(input_pdm_model, patches, shape, inirho=20):
 
 
 def w_pdm_correct(init_shape, patches, pdm_model, part_inds=None):
+    """ correct landmarks using weighted pdm"""
 
     points = weighted_pdm_transform(input_pdm_model=pdm_model, patches=patches, shape=PointCloud(init_shape))
 
@@ -116,6 +123,8 @@ def w_pdm_correct(init_shape, patches, pdm_model, part_inds=None):
 
 
 def feature_based_pdm_corr(lms_init, models_dir, train_type='basic', patches=None):
+    """ correct landmarks using part-based pdm"""
+
     jaw_line_inds = np.arange(0, 17)
     nose_inds = np.arange(27, 36)
     left_eye_inds = np.arange(36, 42)
@@ -125,6 +134,7 @@ def feature_based_pdm_corr(lms_init, models_dir, train_type='basic', patches=Non
     mouth_inds = np.arange(48, 68)
 
     '''
+    selected number of PCs:
     jaw:7
     eye:3
     brow:2
@@ -144,7 +154,10 @@ def feature_based_pdm_corr(lms_init, models_dir, train_type='basic', patches=Non
         pc = pc_opt[i]
         temp_model = os.path.join(models_dir, train_type + '_' + part + '_' + str(pc))
         filehandler = open(temp_model, "rb")
-        pdm_temp = pickle.load(filehandler)
+        try:
+            pdm_temp = pickle.load(filehandler)
+        except UnicodeDecodeError:
+            pdm_temp = pickle.load(filehandler, fix_imports=True, encoding="latin1")
         filehandler.close()
 
         if patches is None:
@@ -157,11 +170,17 @@ def feature_based_pdm_corr(lms_init, models_dir, train_type='basic', patches=Non
     return new_lms
 
 
-def clm_correct(clm_model_path,image,map,lms_init):
+def clm_correct(clm_model_path, image, map, lms_init):
+    """ tune landmarks using clm (constrained local model)"""
+
     filehandler = open(os.path.join(clm_model_path), "rb")
-    part_model = pickle.load(filehandler)
+    try:
+        part_model = pickle.load(filehandler)
+    except UnicodeDecodeError:
+        part_model = pickle.load(filehandler, fix_imports=True, encoding="latin1")
     filehandler.close()
 
+    # from ECT: https://github.com/HongwenZhang/ECT-FaceAlignment
     part_model.opt = dict()
     part_model.opt['numIter'] = 5
     part_model.opt['kernel_covariance'] = 10
@@ -177,9 +196,9 @@ def clm_correct(clm_model_path,image,map,lms_init):
 
     fitter = GradientDescentCLMFitter(part_model, n_shape=30)
 
-    image.rspmap_data=np.swapaxes(np.swapaxes(map,1,3),2,3)
+    image.rspmap_data = np.swapaxes(np.swapaxes(map, 1, 3), 2, 3)
 
-    fr = fitter.fit_from_shape(image=image, initial_shape=PointCloud(lms_init),gt_shape=PointCloud(lms_init))
+    fr = fitter.fit_from_shape(image=image, initial_shape=PointCloud(lms_init), gt_shape=PointCloud(lms_init))
     w_pdm_clm = fr.final_shape.points
 
     return w_pdm_clm
