@@ -20,10 +20,10 @@ download model weights from [here](https://www.dropbox.com/sh/hrxcyug1bmbj6cs/AA
 * The Artistic-Faces dataset can be found [here](http://www.faculty.idc.ac.il/arik/site/foa/artistic-faces-dataset.asp).
 
 * Training images with texture augmentation can be found [here](https://www.dropbox.com/sh/av2k1i1082z0nie/AAC5qV1E2UkqpDLVsv7TazMta?dl=0).
-  before applying texture style transfer, the training images were cropped to the ground-truth face bounding-box with 25% margin. To crop training images, run the script crop_training_set.py.
+  before applying texture style transfer, the training images were cropped to the ground-truth face bounding-box with 25% margin. To crop training images, run the script `crop_training_set.py`.
 
 * our model expects the following directory structure for 
-
+```
 landmark_detection_datasets
     ├── training
     ├── test
@@ -32,7 +32,7 @@ landmark_detection_datasets
     ├── full
     ├── crop_gt_margin_0.25 (cropped images of training set)
     └── crop_gt_margin_0.25_ns (cropped images of training set + texture style transfer)
-    
+```    
 ### Install
 
 Create a virtual environment and install the following:
@@ -73,7 +73,7 @@ git clone https://github.com/papulke/deep_face_heatmaps
 
 ### Training
 
-To train fusion network you need to run train_heatmaps_network.py
+To train fusion network you need to run `train_heatmaps_network.py`
 
 example for training a model with texture augmentation (100% of images) and geometric augmentation (~70% of images):
 ```
@@ -83,7 +83,7 @@ python train_heatmaps_network.py --output_dir='test_artistic_aug' --augment_geom
 
 ### Testing 
 
-For using the detection framework to predict landmarks, run the script predict_landmarks.py
+For using the detection framework to predict landmarks, run the script `predict_landmarks.py`
 
 ## Acknowledgments
 
