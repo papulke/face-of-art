@@ -25,7 +25,7 @@ download model weights from [here](https://www.dropbox.com/sh/hrxcyug1bmbj6cs/AA
 * Training images with texture augmentation can be found [here](https://www.dropbox.com/sh/av2k1i1082z0nie/AAC5qV1E2UkqpDLVsv7TazMta?dl=0).
   before applying texture style transfer, the training images were cropped to the ground-truth face bounding-box with 25% margin. To crop training images, run the script `crop_training_set.py`.
 
-* our model expects the following directory structure for 
+* our model expects the following directory structure of landmark detection datasets: 
 ```
 landmark_detection_datasets
     ├── training
@@ -76,7 +76,7 @@ git clone https://github.com/papulke/deep_face_heatmaps
 
 ### Training
 
-To train fusion network you need to run `train_heatmaps_network.py`
+To train the network you need to run `train_heatmaps_network.py`
 
 example for training a model with texture augmentation (100% of images) and geometric augmentation (~70% of images):
 ```
@@ -90,9 +90,9 @@ For using the detection framework to predict landmarks, run the script `predict_
 
 ## Acknowledgments
 
+* [ect](https://github.com/HongwenZhang/ECT-FaceAlignment)
 * [menpo](https://github.com/menpo/menpo)
 * [menpofit](https://github.com/menpo/menpofit)
-* [ect](https://github.com/HongwenZhang/ECT-FaceAlignment)
 * [mdm](https://github.com/trigeorgis/mdm)
 * [style transfer implementation](https://github.com/woodrush/neural-art-tf)
 * [painter-by-numbers dataset](https://www.kaggle.com/c/painter-by-numbers/data)
