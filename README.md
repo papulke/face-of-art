@@ -2,6 +2,8 @@
 
 Code for the landmark detection framework described in [The Face of Art: Landmark Detection and Geometric Style in Portraits](http://www.faculty.idc.ac.il/arik/site/foa/face-of-art.asp) (SIGGRAPH 2019)
 
+[]!(old/teaser.png)
+
 ## Getting Started
 
 ### Requirements
