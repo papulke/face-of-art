@@ -233,6 +233,9 @@ class DeepHeatmapsModel(object):
                 self.log_image_map = tf.placeholder(
                     tf.uint8, [None, row * self.image_size, 3 * row * self.image_size, self.c_dim],
                     'sample_img_map')
+                self.log_STN_image_map = tf.placeholder(
+                    tf.uint8, [None, row * self.image_size, 3 * row * self.image_size, self.c_dim],
+                    'sample_STN_img_map')
                 if self.sample_per_channel:
                     row = np.ceil(np.sqrt(self.num_landmarks)).astype(np.int64)
                     self.log_map_channels_small = tf.placeholder(
@@ -259,10 +262,10 @@ class DeepHeatmapsModel(object):
                     """
                     take this images -> insert to STN -> output warped images
                     """
-                    l_0 = self.stn(feature_map=input_images, bias_init=bias_init,
-                                   weights_init=weight_initializer, reuse=reuse)
+                    l0 = self.stn(feature_map=input_images, bias_init=bias_init,
+                                   weights_init=weight_initializer, reuse=reuse, is_train=(self.mode=='TRAIN'))
 
-                    l1 = conv_relu_pool(l_0, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
+                    l1 = conv_relu_pool(l0, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_1')
                     l2 = conv_relu_pool(l1, 5, 128, conv_ker_init=weight_initializer, conv_bias_init=bias_init,
                                         reuse=reuse, var_scope='conv_2')
@@ -341,21 +344,21 @@ class DeepHeatmapsModel(object):
 
                 with tf.name_scope('upsample_net'):
 
-                    out = deconv(l_fsn_5, 8, self.num_landmarks, conv_stride=4,
+                    out0 = deconv(l_fsn_5, 8, self.num_landmarks, conv_stride=4,
                                  conv_ker_init=deconv2d_bilinear_upsampling_initializer(
                                      [8, 8, self.num_landmarks, self.num_landmarks]), conv_bias_init=bias_init,
                                  reuse=reuse, var_scope='deconv_1')
                     # apply inverse transformation on the heatmaps,
                     # 68 heatmaps, apply same transformation to each one
-                    out = trnsfrmr.spatial_transformer_network(out, theta=self.theta, is_inverse=True)
+                    out = trnsfrmr.spatial_transformer_network(out0, theta=self.theta, is_inverse=True)
 
-                self.all_layers = [l1, l2, l3, l4, l5, l6, l7, primary_out, l_fsn_1, l_fsn_2, l_fsn_3, l_fsn_4,
-                                   l_fsn_5, out]
+                self.all_layers = [l0, l1, l2, l3, l4, l5, l6, l7, primary_out, l_fsn_1, l_fsn_2, l_fsn_3, l_fsn_4,
+                                   l_fsn_5, out0, out]
 
                 return primary_out, out
 
     def build_model(self):
-        self.pred_hm_p, self.pred_hm_f = self.heatmaps_network(self.images,name='heatmaps_prediction')
+        self.pred_hm_p, self.pred_hm_f = self.heatmaps_network(self.images, name='heatmaps_prediction')
 
     def build_hm_generator(self):  # TODO: remove
 
@@ -410,7 +413,7 @@ class DeepHeatmapsModel(object):
                 else:
                     return landmarks_rms_err
 
-        if self.mode is 'TRAIN':
+        if self.mode == 'TRAIN':
             primary_maps_diff = self.pred_hm_p - self.heatmaps_small
             fusion_maps_diff = self.pred_hm_f - self.heatmaps
 
@@ -560,6 +563,7 @@ class DeepHeatmapsModel(object):
         if self.sample_to_log:
             img_map_summary_small = tf.summary.image('compare_map_to_gt_small', self.log_image_map_small)
             img_map_summary = tf.summary.image('compare_map_to_gt', self.log_image_map)
+            img_map_STN_summary = tf.summary.image('compare_STN_map_to_gt', self.log_STN_image_map)
 
             if self.sample_per_channel:
                 map_channels_summary = tf.summary.image('compare_map_channels_to_gt', self.log_map_channels)
@@ -568,7 +572,7 @@ class DeepHeatmapsModel(object):
                 self.img_summary = tf.summary.merge(
                     [img_map_summary, img_map_summary_small,map_channels_summary,map_channels_summary_small])
             else:
-                self.img_summary = tf.summary.merge([img_map_summary, img_map_summary_small])
+                self.img_summary = tf.summary.merge([img_map_summary, img_map_summary_small, img_map_STN_summary])
 
             if self.valid_size >= self.sample_grid:
                 img_map_summary_valid_small = tf.summary.image('compare_map_to_gt_small_valid', self.log_image_map_small)
@@ -619,7 +623,7 @@ class DeepHeatmapsModel(object):
                     batch_images = load_images(self.img_menpo_list, batch_inds, image_size=self.image_size,
                                                c_dim=self.c_dim, scale=self.scale)
 
-                    batch_maps_small_pred, batch_maps_pred = sess.run(
+                    batch_maps_small_pred, batch_maps_pred= sess.run(
                         [self.pred_hm_p, self.pred_hm_f], {self.images: batch_images})
 
                     batch_maps_gt = None
@@ -983,6 +987,15 @@ class DeepHeatmapsModel(object):
                 if step == resume_step or (step + 1) % self.sample_every == 0:
 
                     batch_maps_small_pred = sess.run(self.pred_hm_p, {self.images: batch_images})
+                    images_after_STN, map_before_STN = sess.run([self.all_layers[0], self.all_layers[-2]], {self.images: batch_images})
+                    lms_before_STN = batch_heat_maps_to_landmarks(map_before_STN, self.batch_size,
+                                                                  image_size=self.image_size,
+                                                                  num_landmarks=self.num_landmarks)
+                    merged_trans_img = merge_images_landmarks_maps_gt(
+                        images_after_STN.copy(), map_before_STN, batch_maps, landmarks=lms_before_STN,
+                        image_size=self.image_size, num_landmarks=self.num_landmarks, num_samples=self.sample_grid,
+                        scale=self.scale, circle_size=2, fast=self.fast_img_gen)
+
                     if not self.compute_nme:
                         batch_maps_pred = sess.run(self.pred_hm_f,  {self.images: batch_images})
                         batch_lms_pred = None
@@ -1008,6 +1021,7 @@ class DeepHeatmapsModel(object):
                             num_landmarks=self.num_landmarks, scale=self.scale)
 
                     if self.sample_to_log:
+
                         if self.sample_per_channel:
                             summary_img = sess.run(
                                 self.img_summary, {self.log_image_map: np.expand_dims(merged_img, 0),
@@ -1017,15 +1031,16 @@ class DeepHeatmapsModel(object):
                         else:
                             summary_img = sess.run(
                                 self.img_summary, {self.log_image_map: np.expand_dims(merged_img, 0),
-                                                   self.log_image_map_small: np.expand_dims(merged_img_small, 0)})
+                                                   self.log_image_map_small: np.expand_dims(merged_img_small, 0),
+                                                   self.log_STN_image_map: np.expand_dims(merged_trans_img, 0)})
                         summary_writer.add_summary(summary_img, step)
 
                         if (self.valid_size >= self.sample_grid) and self.save_valid_images and\
                                 (log_valid_images and epoch % self.log_valid_every == 0):
                             log_valid_images = False
 
-                            batch_maps_small_pred_val,batch_maps_pred_val =\
-                                sess.run([self.pred_hm_p,self.pred_hm_f],
+                            batch_maps_small_pred_val, batch_maps_pred_val =\
+                                sess.run([self.pred_hm_p, self.pred_hm_f],
                                          {self.images: self.valid_images_loaded[:self.sample_grid]})
 
                             merged_img_small = merge_images_landmarks_maps_gt(
@@ -1104,18 +1119,25 @@ class DeepHeatmapsModel(object):
 
         return test_image_map_small, test_image_map
 
-    def stn(self, feature_map, weights_init, bias_init, reuse):
+    def stn(self, feature_map, weights_init, bias_init, reuse, is_train=True):
         nx = ny = 48
-        out_size = 6  # 6 for affine, nx*ny*2 for tps
-        l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=64,
+        out_size = 4  # 6 for affine, nx*ny*2 for tps
+        l_stn_0_0 = conv_relu_pool(feature_map, conv_ker=3, conv_filters=20,
                                    conv_ker_init=weights_init, conv_bias_init=bias_init,
                                    reuse=reuse, var_scope='conv_stn_0_0')
-        l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=32,
+        l_stn_0_0 = tf.layers.dropout(inputs=l_stn_0_0, rate=0.4, training=is_train)
+        l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=10,
                                    conv_ker_init=weights_init, conv_bias_init=bias_init,
                                    reuse=reuse, var_scope='conv_stn_0_1')
         l_stn_0_2 = fc(l_stn_0_1, out_size=out_size, weights_initializer=weights_init, biases_initializer=bias_init,
                        reuse=reuse, var_scope='conv_stn_0_2')
-        self.theta = l_stn_0_2
+
+        const_zero = tf.zeros(shape=(tf.shape(l_stn_0_2)[0], 1))
+        self.theta = tf.concat([l_stn_0_2[:, 0:2], const_zero], 1)
+        self.theta = tf.concat([self.theta, l_stn_0_2[:, 2:4]], 1)
+        self.theta = tf.concat([self.theta, const_zero], 1)
+
+
         return trnsfrmr.spatial_transformer_network(feature_map, theta=self.theta)
         # return transformer_TPS.TPS(U=feature_map, nx=nx, ny=ny, cp=l_stn_0_2, out_size=(height, width))
 
