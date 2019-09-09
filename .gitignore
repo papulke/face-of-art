@@ -3,9 +3,13 @@
 .idea/misc.xml
 .idea/modules.xml
 .idea/vcs.xml
-*.pyc
 .idea/workspace.xml
+.idea/encodings.xml
+*.pyc
 *.txt
 *.csv
 *.DANIEL
 *.orig
+*.data-00000-of-00001
+*.index
+*.meta
