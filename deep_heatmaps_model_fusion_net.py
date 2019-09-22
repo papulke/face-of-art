@@ -30,8 +30,7 @@ class DeepHeatmapsModel(object):
                  print_every=100, save_every=5000, sample_every=5000, sample_grid=9, sample_to_log=True,
                  debug_data_size=20, debug=False, epoch_data_dir='epoch_data', use_epoch_data=False, menpo_verbose=True):
 
-        self.theta = [] # used to hold the affine transformation parameters (batch_size, 6)
-
+        self.theta = []  # used to hold the affine transformation parameters (batch_size, 6)
         # define some extra parameters
 
         self.log_histograms = False  # save weight + gradient histogram to log
@@ -147,7 +146,7 @@ class DeepHeatmapsModel(object):
                     self.train_inds = self.train_inds[:self.debug_data_size]
                     self.img_menpo_list = self.img_menpo_list[self.train_inds]
 
-                if valid_size > 0:
+                if (valid_size > 0):
 
                     self.valid_bb_dictionary = load_bb_dictionary(self.bb_dir, 'TEST', test_data=self.valid_data)
                     self.valid_img_menpo_list = load_menpo_image_list(
@@ -180,7 +179,7 @@ class DeepHeatmapsModel(object):
                     if self.allocate_once:
                         self.valid_landmarks_pred = np.zeros([self.valid_size, self.num_landmarks, 2]).astype('float32')
 
-                    if self.valid_size > self.sample_grid:
+                    if (self.valid_size > self.sample_grid):
                         self.valid_gt_maps_loaded = self.valid_gt_maps_loaded[:self.sample_grid]
                         self.valid_gt_maps_small_loaded = self.valid_gt_maps_small_loaded[:self.sample_grid]
                 else:
@@ -364,7 +363,7 @@ class DeepHeatmapsModel(object):
 
         # generate heat-maps using:
         # a sparse base (matrix of zeros with 1's in landmark locations) and convolving with a gaussian filter
-        print ("*** using convolution to create heat-maps. use this option only with GPU support ***")
+        print("*** using convolution to create heat-maps. use this option only with GPU support ***")
 
         # small map generator
         # create gaussian filter
@@ -417,9 +416,20 @@ class DeepHeatmapsModel(object):
             primary_maps_diff = self.pred_hm_p - self.heatmaps_small
             fusion_maps_diff = self.pred_hm_f - self.heatmaps
 
+            stnReg = 0.1
+            identity_transform = tf.constant(tf.zeros_like(self.theta))
+            # [[1, 0, 0, 0, 1, 0]]
+            one_tensor = tf.ones_like(self.theta[:, 0])
+            identity_transform[:, 2] = one_tensor
+            identity_transform[:, 5] = one_tensor
+
+            self.stn_loss = stnReg * tf.reduce_mean(self.theta - identity_transform)
+
             self.l2_primary = tf.reduce_mean(tf.square(primary_maps_diff))
             self.l2_fusion = tf.reduce_mean(tf.square(fusion_maps_diff))
-            self.total_loss = 1000.*(self.l_weight_primary * self.l2_primary + self.l_weight_fusion * self.l2_fusion)
+            self.total_loss = 1000.*(self.l_weight_primary * self.l2_primary +
+                                     self.l_weight_fusion * self.l2_fusion +
+                                     self.stn_loss)
 
             # add weight decay
             self.total_loss += self.reg * tf.add_n(
@@ -428,7 +438,7 @@ class DeepHeatmapsModel(object):
             if self.compute_nme:
                 self.nme_loss = tf.reduce_mean(l2_loss_norm_eyes(self.train_pred_lms, self.train_lms))
 
-            if self.valid_size > 0 and self.compute_nme:
+            if (self.valid_size > 0) and self.compute_nme:
                 self.valid_nme_loss = tf.reduce_mean(l2_loss_norm_eyes(self.valid_pred_lms,self.valid_lms))
 
         elif self.mode == 'TEST' and self.compute_nme:
@@ -438,7 +448,7 @@ class DeepHeatmapsModel(object):
     def predict_landmarks_in_batches(self, image_paths, session):
 
         num_batches = int(1.*len(image_paths)/self.batch_size)
-        if num_batches == 0:
+        if (num_batches == 0):
             batch_size = len(image_paths)
             num_batches = 1
         else:
@@ -539,7 +549,8 @@ class DeepHeatmapsModel(object):
 
         if self.compute_nme:
             l_nme = tf.summary.scalar('l_nme', self.nme_loss)
-            self.batch_summary_op = tf.summary.merge([self.batch_summary_op, l_nme])
+            l_stn = tf.summary.scalar('l_stn', self.stn_loss)
+            self.batch_summary_op = tf.summary.merge([self.batch_summary_op, l_nme, l_stn])
 
         if self.log_histograms:
             var_summary = [tf.summary.histogram(var.name,var) for var in tf.trainable_variables()]
@@ -557,7 +568,7 @@ class DeepHeatmapsModel(object):
             p_geom_summary = tf.summary.scalar('p_geom', self.p_geom_log)
             self.batch_summary_op = tf.summary.merge([self.batch_summary_op, p_geom_summary])
 
-        if self.valid_size > 0 and self.compute_nme:
+        if (self.valid_size > 0) and self.compute_nme:
             self.valid_summary = tf.summary.scalar('valid_l_nme', self.valid_nme_loss)
 
         if self.sample_to_log:
@@ -607,7 +618,7 @@ class DeepHeatmapsModel(object):
         with tf.Session(config=self.config) as sess:
 
             # load trained parameters
-            print ('loading test model...')
+            print('loading test model...')
             saver = tf.train.Saver()
             saver.restore(sess, self.test_model_path)
 
@@ -681,13 +692,13 @@ class DeepHeatmapsModel(object):
                     scipy.misc.imsave(sample_path_channels, map_per_channel)
                     scipy.misc.imsave(sample_path_channels_small, map_per_channel_small)
 
-                print ('saved %s' % sample_path_imgs)
+                print('saved %s' % sample_path_imgs)
 
-            if self.compute_nme and self.test_data in ['full', 'challenging', 'common', 'training', 'test']:
-                print('\n Calculating NME on: ' + self.test_data + '...')
+            if self.compute_nme and (self.test_data in ['full', 'challenging', 'common', 'training', 'test']):
+                print("\n Calculating NME on: {0} ...\n".format(self.test_data))
                 pred_lms, lms_gt = self.predict_landmarks_in_batches(self.img_menpo_list, sess)
                 nme = sess.run(self.nme_loss, {self.pred_lms: pred_lms, self.lms: lms_gt})
-                print('NME on ' + self.test_data + ': ' + str(nme))
+                print("NME on {0} : {1}".format(self.test_data, nme))
 
     def train(self):
         # set random seed
@@ -723,8 +734,7 @@ class DeepHeatmapsModel(object):
 
             # load pre trained weights if load_pretrain==True
             if self.load_pretrain:
-                print
-                print('*** loading pre-trained weights from: '+self.pre_train_path+' ***')
+                print('\n*** loading pre-trained weights from: {0} ***\n'.format(self.pre_train_path))
                 if self.load_primary_only:
                     print('*** loading primary-net only ***')
                     primary_var = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if
@@ -737,7 +747,7 @@ class DeepHeatmapsModel(object):
 
             # for fine-tuning, choose reset_training_op==True. when resuming training, reset_training_op==False
             if self.reset_training_op:
-                print ("resetting optimizer and global step")
+                print("resetting optimizer and global step")
                 opt_var_list = [optimizer.get_slot(var, name) for name in optimizer.get_slot_names()
                                  for var in tf.global_variables() if optimizer.get_slot(var, name) is not None]
                 opt_var_list_init = tf.variables_initializer(opt_var_list)
@@ -748,8 +758,7 @@ class DeepHeatmapsModel(object):
             summary_writer = tf.summary.FileWriter(logdir=self.save_log_path, graph=tf.get_default_graph())
             saver = tf.train.Saver()
 
-            print
-            print('*** Start Training ***')
+            print('\n*** Start Training ***\n')
 
             # initialize some variables before training loop
             resume_step = global_step.eval()
@@ -790,7 +799,7 @@ class DeepHeatmapsModel(object):
 
                 j = step % batches_in_epoch  # j==0 if we finished an epoch
 
-                if step > resume_step and j == 0:  # if we finished an epoch and this isn't the first step
+                if (step > resume_step) and j == 0:  # if we finished an epoch and this isn't the first step
                     epoch += 1
                     img_inds = self.epoch_inds_shuffle[epoch, :]  # get next shuffled image inds
                     artistic_reload = True
@@ -804,37 +813,38 @@ class DeepHeatmapsModel(object):
                             augment_basic=False, augment_texture=False, augment_geom=False)
 
                 # add basic augmentation (if basic_start > 0 and augment_basic is True)
-                if basic_reload and (epoch >= self.basic_start) and self.basic_start > 0 and self.augment_basic:
+                if basic_reload and self.augment_basic and (epoch >= self.basic_start) and (self.basic_start > 0):
                     basic_reload = False
                     self.img_menpo_list = reload_menpo_image_list(
                         self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
                         image_size=self.image_size, augment_basic=self.augment_basic,
                         augment_texture=(self.augment_texture and epoch >= self.artistic_start), p_texture=p_texture,
                         augment_geom=(self.augment_geom and epoch >= self.artistic_start), p_geom=p_geom)
-                    print ("****** adding basic augmentation ******")
+                    print("****** adding basic augmentation ******")
 
                 # increase artistic augmentation probability
-                if ((epoch % self.artistic_step == 0 and epoch >= self.artistic_start and self.artistic_step != -1)
-                    or (epoch == self.artistic_start)) and (self.augment_geom or self.augment_texture)\
-                        and artistic_reload:
-
+                if (((epoch % self.artistic_step == 0) and (epoch >= self.artistic_start)
+                     and (self.artistic_step != -1)) or (epoch == self.artistic_start)) \
+                        and (self.augment_geom or self.augment_texture) and artistic_reload:
                     artistic_reload = False
 
                     if epoch == self.artistic_start:
-                        print ("****** adding artistic augmentation ******")
-                        print ("****** augment_geom: " + str(self.augment_geom) + ", p_geom: " + str(p_geom) + " ******")
-                        print ("****** augment_texture: " + str(self.augment_texture) + ", p_texture: " +
-                               str(p_texture) + " ******")
+                        print("****** adding artistic augmentation ******")
+                        print("****** augment_geom: {0}, p_geom: {1} ******".
+                              format(self.augment_geom, p_geom))
+                        print("****** augment_texture: {0} p_texture: {1} ******".
+                              format(self.augment_texture, p_texture))
 
-                    if epoch % self.artistic_step == 0 and self.artistic_step != -1:
-                        print ("****** increasing artistic augmentation probability ******")
+                    if (epoch % self.artistic_step == 0) and (self.artistic_step != -1):
+                        print("****** increasing artistic augmentation probability ******")
 
                         p_geom = 1. - 0.95 ** (epoch / self.artistic_step)
                         p_texture = 1. - 0.95 ** (epoch / self.artistic_step)
 
-                        print ("****** augment_geom: " + str(self.augment_geom) + ", p_geom: " + str(p_geom) + " ******")
-                        print ("****** augment_texture: " + str(self.augment_texture) + ", p_texture: " +
-                               str(p_texture) + " ******")
+                        print("****** augment_geom: {0}, p_geom: {1} ******".
+                              format(self.augment_geom, p_geom))
+                        print("****** augment_texture: {0}, p_texture: {1} ******".
+                              format(self.augment_texture, p_texture))
 
                     self.img_menpo_list = reload_menpo_image_list(
                         self.img_path, self.train_crop_dir, self.img_dir_ns, self.mode, self.train_inds,
@@ -900,7 +910,7 @@ class DeepHeatmapsModel(object):
                 sess.run(train_op, feed_dict_train)
 
                 # save to log and print status
-                if step == resume_step or (step + 1) % self.print_every == 0:
+                if (step == resume_step) or ((step + 1) % self.print_every == 0):
 
                     # log probability of artistic augmentation
                     if self.log_artistic_augmentation_probs and (self.augment_geom or self.augment_texture):
@@ -932,31 +942,32 @@ class DeepHeatmapsModel(object):
                         if self.log_artistic_augmentation_probs and (self.augment_geom or self.augment_texture):
                             train_feed_dict_log.update(art_augment_prob_dict)
 
-                        summary, l_p, l_f, l_t, l_nme = sess.run(
+                        summary, l_p, l_f, l_t, l_nme, l_stn = sess.run(
                             [self.batch_summary_op, self.l2_primary, self.l2_fusion, self.total_loss,
-                             self.nme_loss],
+                             self.nme_loss, self.stn_loss],
                             train_feed_dict_log)
 
-                        print (
+                        print(
                             'epoch: [%d] step: [%d/%d] primary loss: [%.6f] fusion loss: [%.6f]'
-                            ' total loss: [%.6f] NME: [%.6f]' % (
-                                epoch, step + 1, self.train_iter, l_p, l_f, l_t, l_nme))
+                            ' total loss: [%.6f] NME: [%.6f] STN: [%.6f]' %
+                            (epoch, step + 1, self.train_iter, l_p, l_f, l_t, l_nme, l_stn)
+                        )
                     else:
                         train_feed_dict_log = {self.images: batch_images, self.heatmaps: batch_maps,
                                                self.heatmaps_small: batch_maps_small}
                         if self.log_artistic_augmentation_probs and (self.augment_geom or self.augment_texture):
                             train_feed_dict_log.update(art_augment_prob_dict)
-                        summary, l_p, l_f, l_t = sess.run(
-                            [self.batch_summary_op, self.l2_primary, self.l2_fusion, self.total_loss],
+                        summary, l_p, l_f, l_t, l_stn = sess.run(
+                            [self.batch_summary_op, self.l2_primary, self.l2_fusion, self.total_loss, self.stn_loss],
                             train_feed_dict_log)
-                        print (
-                            'epoch: [%d] step: [%d/%d] primary loss: [%.6f] fusion loss: [%.6f] total loss: [%.6f]'
-                            % (epoch, step + 1, self.train_iter, l_p, l_f, l_t))
+                        print('epoch: [%d] step: [%d/%d] primary loss: [%.6f] fusion loss: [%.6f] stn loss [%.6f]'
+                              'total loss: [%.6f]' %
+                              (epoch, step + 1, self.train_iter, l_p, l_f, l_stn, l_t))
 
                     summary_writer.add_summary(summary, step)
 
                     # valid data log
-                    if self.valid_size > 0 and (log_valid and epoch % self.log_valid_every == 0) \
+                    if (self.valid_size > 0) and (log_valid and epoch % self.log_valid_every == 0) \
                             and self.compute_nme:
                         log_valid = False
 
@@ -974,17 +985,16 @@ class DeepHeatmapsModel(object):
                         v_summary, l_v_nme = sess.run([self.valid_summary, self.valid_nme_loss],
                                                       valid_feed_dict_log)
                         summary_writer.add_summary(v_summary, step)
-                        print (
-                            'epoch: [%d] step: [%d/%d] valid NME: [%.6f]' % (
-                                epoch, step + 1, self.train_iter, l_v_nme))
+                        print('epoch: [%d] step: [%d/%d] valid NME: [%.6f]' %
+                              (epoch, step + 1, self.train_iter, l_v_nme))
 
                 # save model
                 if (step + 1) % self.save_every == 0:
                     saver.save(sess, os.path.join(self.save_model_path, 'deep_heatmaps'), global_step=step + 1)
-                    print ('model/deep-heatmaps-%d saved' % (step + 1))
+                    print('model/deep-heatmaps-%d saved' % (step + 1))
 
                 # save images. TODO: add option to allocate once
-                if step == resume_step or (step + 1) % self.sample_every == 0:
+                if (step == resume_step) or ((step + 1) % self.sample_every == 0):
 
                     batch_maps_small_pred = sess.run(self.pred_hm_p, {self.images: batch_images})
                     images_after_STN, map_before_STN = sess.run([self.all_layers[0], self.all_layers[-2]], {self.images: batch_images})
@@ -1129,15 +1139,20 @@ class DeepHeatmapsModel(object):
         l_stn_0_1 = conv_relu_pool(l_stn_0_0, conv_ker=3, conv_filters=10,
                                    conv_ker_init=weights_init, conv_bias_init=bias_init,
                                    reuse=reuse, var_scope='conv_stn_0_1')
+        # TODO: after testing the new loss term, add also initialization close to zero for this layer only
         l_stn_0_2 = fc(l_stn_0_1, out_size=out_size, weights_initializer=weights_init, biases_initializer=bias_init,
                        reuse=reuse, var_scope='conv_stn_0_2')
 
+        # zeroes vector of length batch_size
         const_zero = tf.zeros(shape=(tf.shape(l_stn_0_2)[0], 1))
+        # theta is now: (batch_size x 3) of [value0, value1, zeros]
         self.theta = tf.concat([l_stn_0_2[:, 0:2], const_zero], 1)
+        # theta is now: (batch_size x 5) of [value0, value1, zeros, value2, value3]
         self.theta = tf.concat([self.theta, l_stn_0_2[:, 2:4]], 1)
+        # theta is now: (batch_size x 6) of [value0, value1, zeros, value2, value3, zeros]
         self.theta = tf.concat([self.theta, const_zero], 1)
 
-
+        # theta is reshaped to [batch_size, 2, 3] inside transformer network
         return trnsfrmr.spatial_transformer_network(feature_map, theta=self.theta)
         # return transformer_TPS.TPS(U=feature_map, nx=nx, ny=ny, cp=l_stn_0_2, out_size=(height, width))
 
