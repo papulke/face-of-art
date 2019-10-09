@@ -3,11 +3,15 @@ from glob import glob
 
 flags = tf.app.flags
 
-models_dir = 'model'
-pre_train_model_name = 'deep_heatmaps-30000'
-datasets=['full','common','challenging','test']
+models_dir = '/mnt/External1/Yael/comparison/Affine/30-3-2019/'
+pre_train_model_name = 'deep_heatmaps-60000'
+datasets=['artistic_faces_set']
+#       'full_set_aug_geom_texture',
+#       'common_set_aug_geom_texture',
+#       'challenging_set_aug_geom_texture',
+#       'test_set_aug_geom_texture']
 
-data_dir = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
+data_dir = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'#semi_art_sets_wiki_train_2/'
 
 # define paths
 flags.DEFINE_string('img_dir', data_dir, 'data directory')
@@ -16,7 +20,7 @@ flags.DEFINE_string('model_name', pre_train_model_name, "model name. e.g: 'deep_
 
 
 # parameters used to train network
-flags.DEFINE_string('network_type', 'Primary', 'network architecture Fusion/Primary')
+flags.DEFINE_string('network_type', 'Fusion', 'network architecture Fusion/Primary')
 flags.DEFINE_integer('image_size', 256, 'image size')
 flags.DEFINE_integer('c_dim', 3, 'color channels')
 flags.DEFINE_integer('num_landmarks', 68, 'number of face landmarks')
@@ -45,6 +49,8 @@ def main(_):
         model_names=[]
 
         for i, model_dir in enumerate(model_dirs):
+	    if model_dir == "logs":
+	    	continue
             print ('\n##### EVALUATING MODELS ON '+test_data+' set (%d/%d) #####' % (i + 1, len(model_dirs)))
             # create directories if not exist
             log_path = os.path.join(model_dir,'logs/nme_statistics')

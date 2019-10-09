@@ -72,17 +72,25 @@ def spatial_transformer_network(input_fmap, theta, is_inverse=False, mode=MODE.A
             # use the inverse transform as the actual transform
             theta = tf.transpose(inv_theta, perm=[2, 0, 1])
             """
-            v_ones = tf.ones(B)
-            v_zeros = tf.zeros(B)
+            v_ones = tf.ones([B])
+            v_zeros = tf.zeros([B])
 
-            last_row = [v_zeros, v_zeros, v_ones]
-            last_row = tf.transpose(last_row, perm=[1, 0])
-            last_row = tf.expand_dims(last_row, 1)
+	    #theta_inv = tf.linalg.inv(theta_3x3)
+            #theta_inv = tf.martix_inverse(theta_3x3)
 
-            theta_3x3 = tf.concat([theta, last_row], axis=1)
+            a = theta[:, 0, 0]
+            b = theta[:, 0, 1]
+            c = theta[:, 0, 2]
+            d = theta[:, 1, 0]
+            e = theta[:, 1, 1]
+            f = theta[:, 1, 2]
 
-            theta_inv = tf.linalg.inv(theta_3x3)
-            theta = theta_inv[:, :2, :]
+            det = tf.multiply(a, e) - tf.multiply(b, d)
+            inv_det = 1/det
+            inv_theta = [[e, -b, tf.multiply(b,f)-tf.multiply(c,e)],
+	                 [-d, a, tf.multiply(c,d)-tf.multiply(a,f)]]
+            inv_theta = tf.multiply(inv_theta, inv_det)
+            theta = tf.transpose(inv_theta, perm=[2, 0, 1])
 
     else:
         raise ValueError("given MODE not supported")

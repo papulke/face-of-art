@@ -156,11 +156,11 @@ def augment_face_image(img, image_size=256, crop_size=248, angle_range=30, flip=
 
         return im
 
-    flip_rand = np.random.random() > 0.5
-    #     rot_rand = np.random.random() > 0.5
-    #     crop_rand = np.random.random() > 0.5
-    rot_rand = True  # like ECT
-    crop_rand = True  # like ECT
+    flip_rand = np.random.random() > 0.3 #original version: p > 0.5
+    rot_rand = np.random.random() > 0.3
+    crop_rand = np.random.random() > 0.3
+    #     rot_rand = True  # like ECT
+    #     crop_rand = True  # like ECT
 
     if crop_rand:
         lim = image_size - crop_size

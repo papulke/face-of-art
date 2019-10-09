@@ -33,7 +33,7 @@ flags.DEFINE_string('test_data', 'full', 'test set to use: full/common/challengi
 flags.DEFINE_string('valid_data', 'full', 'validation set to use: full/common/challenging/test/art')
 flags.DEFINE_string('train_crop_dir', 'crop_gt_margin_0.25', "directory of train images cropped to bb (+margin)")
 flags.DEFINE_string('img_dir_ns', 'crop_gt_margin_0.25_ns', "dir of train imgs cropped to bb + style transfer")
-flags.DEFINE_string('epoch_data_dir', 'epoch_data', "directory containing pre-augmented data for each epoch")
+flags.DEFINE_string('epoch_data_dir', epoch_data, "directory containing pre-augmented data for each epoch")
 flags.DEFINE_bool('use_epoch_data', False, "use pre-augmented data")
 
 # pretrain parameters (for fine-tuning / resume training)
@@ -68,7 +68,7 @@ flags.DEFINE_float('weight_initializer_std', 0.01, 'std for random_normal weight
 flags.DEFINE_float('bias_initializer', 0.0, 'constant value for bias initializer')
 
 # augmentation parameters
-flags.DEFINE_bool('augment_basic', True,"use basic augmentation?")
+flags.DEFINE_bool('augment_basic', True, "use basic augmentation?")
 flags.DEFINE_integer('basic_start', 0,  'min epoch to start basic augmentation')
 flags.DEFINE_bool('augment_texture', False,"use artistic texture augmentation?")
 flags.DEFINE_float('p_texture', 0., 'initial probability of artistic texture augmentation')

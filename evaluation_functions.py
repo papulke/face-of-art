@@ -7,8 +7,8 @@ from logging_functions import *
 from data_loading_functions import *
 from time import time
 import sys
-from PyQt5 import QtWidgets
-qapp=QtWidgets.QApplication([''])
+from PyQt4 import QtGui #from PyQt5 import QtWidgets
+qapp=QtGui.QApplication(['']) #qapp=QtWidgets.QApplication([''])
 
 
 def load_menpo_test_list(img_dir, test_data='full', image_size=256, margin=0.25, bb_type='gt'):

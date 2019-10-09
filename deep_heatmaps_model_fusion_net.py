@@ -9,7 +9,7 @@ from tensorflow import contrib
 from menpo_functions import *
 from logging_functions import *
 from data_loading_functions import *
-# import transformer_TPS as transformer
+#import transformerTPS as trnsfrmr
 import transformerAffine as trnsfrmr
 
 
@@ -30,7 +30,8 @@ class DeepHeatmapsModel(object):
                  print_every=100, save_every=5000, sample_every=5000, sample_grid=9, sample_to_log=True,
                  debug_data_size=20, debug=False, epoch_data_dir='epoch_data', use_epoch_data=False, menpo_verbose=True):
 
-        self.theta = []  # used to hold the affine transformation parameters (batch_size, 6)
+        self.theta = [] # used to hold the affine transformation parameters (batch_size, 6)
+
         # define some extra parameters
 
         self.log_histograms = False  # save weight + gradient histogram to log
@@ -340,19 +341,25 @@ class DeepHeatmapsModel(object):
 
                     l_fsn_5 = conv(l_fsn_4, 1, self.num_landmarks, conv_ker_init=weight_initializer,
                                    conv_bias_init=bias_init, reuse=reuse, var_scope='conv_fsn_5')  # 64x64x68
+                    # apply inverse transformation on the heatmaps,
+                    # 68 heatmaps, apply same transformation to each one
+                    out0 = trnsfrmr.spatial_transformer_network(l_fsn_5, theta=self.theta, is_inverse=True)
 
                 with tf.name_scope('upsample_net'):
 
-                    out0 = deconv(l_fsn_5, 8, self.num_landmarks, conv_stride=4,
+                    out = deconv(out0, 8, self.num_landmarks, conv_stride=4,
                                  conv_ker_init=deconv2d_bilinear_upsampling_initializer(
                                      [8, 8, self.num_landmarks, self.num_landmarks]), conv_bias_init=bias_init,
                                  reuse=reuse, var_scope='deconv_1')
-                    # apply inverse transformation on the heatmaps,
-                    # 68 heatmaps, apply same transformation to each one
-                    out = trnsfrmr.spatial_transformer_network(out0, theta=self.theta, is_inverse=True)
+
+					out1 = deconv(l_fsn_5, 8, self.num_landmarks, conv_stride=4,
+                                 conv_ker_init=deconv2d_bilinear_upsampling_initializer(
+                                     [8, 8, self.num_landmarks, self.num_landmarks]), conv_bias_init=bias_init,
+                                 reuse=True, var_scope='deconv_1')
+
 
                 self.all_layers = [l0, l1, l2, l3, l4, l5, l6, l7, primary_out, l_fsn_1, l_fsn_2, l_fsn_3, l_fsn_4,
-                                   l_fsn_5, out0, out]
+                                   l_fsn_5, out1, out]
 
                 return primary_out, out
 
@@ -545,7 +552,11 @@ class DeepHeatmapsModel(object):
         l2_primary = tf.summary.scalar('l2_primary', self.l2_primary)
         l2_fusion = tf.summary.scalar('l2_fusion', self.l2_fusion)
         l_total = tf.summary.scalar('l_total', self.total_loss)
-        self.batch_summary_op = tf.summary.merge([l2_primary,l2_fusion,l_total])
+        transform0 = tf.summary.scalar('theta_0', self.theta[0,0])
+        transform1 = tf.summary.scalar('theta_1', self.theta[0,1])
+        transform2 = tf.summary.scalar('theta_2', self.theta[0,3])
+        transform3 = tf.summary.scalar('theta_3', self.theta[0,4])
+        self.batch_summary_op = tf.summary.merge([l2_primary, l2_fusion, l_total, transform0, transform1, transform2, transform3])
 
         if self.compute_nme:
             l_nme = tf.summary.scalar('l_nme', self.nme_loss)
