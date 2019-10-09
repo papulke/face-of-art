@@ -3,10 +3,11 @@ from deep_heatmaps_model_fusion_net import DeepHeatmapsModel
 import os
 
 
-data_dir = '/Users/arik/Dropbox/a_mac_thesis/face_heatmap_networks/conventional_landmark_detection_dataset/'
-pre_train_path = 'model/deep_heatmaps-15000'
-output_dir = os.getcwd()
+pre_train_path = "/mnt/External1/Yael/comparison/Affine/30-3-2019/model0_artistic/model/deep_heatmaps-35000"
+output_dir = '/mnt/External1/Yael/comparison/Affine/26-2-2019/model0/'
 data_dir = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/'
+epoch_data = '/mnt/External1/Yarden/deep_face_heatmaps/data/conventional_landmark_detection_dataset/epoch_data_aug_geom_texture_2/'
+
 
 flags = tf.app.flags
 
