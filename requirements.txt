@@ -123,7 +123,7 @@ prompt-toolkit==1.0.14
 protobuf==3.5.2.post1
 psutil==5.2.2
 ptyprocess==0.5.1
-py==1.4.33
+py==1.10.0
 PyAudio==0.2.7
 pycosat==0.6.2
 pycparser==2.17
