@@ -45,7 +45,7 @@ enum34==1.1.6
 et-xmlfile==1.0.1
 fastcache==1.0.2
 Flask==1.0.2
-Flask-Cors==3.0.2
+Flask-Cors==3.0.9
 funcsigs==1.0.2
 functools32==3.2.3.post2
 futures==3.2.0
