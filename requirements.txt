@@ -9,7 +9,7 @@ asn1crypto==0.22.0
 astor==0.6.2
 astroid==1.4.9
 astropy==2.0.2
-Babel==2.4.0
+Babel==2.9.1
 backports-abc==0.5
 backports.shutil-get-terminal-size==1.0.0
 backports.ssl-match-hostname==3.4.0.2
