@@ -57,7 +57,7 @@ grin==1.2.1
 grpcio==1.10.1
 h5py==2.7.0
 HeapDict==1.0.0
-html5lib==0.9999999
+html5lib==0.99999999
 idna==2.5
 imagesize==0.7.1
 ipaddress==1.0.18
