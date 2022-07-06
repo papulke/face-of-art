@@ -81,7 +81,7 @@ Keras-Preprocessing==1.0.1
 lazy-object-proxy==1.2.2
 llvmlite==0.18.0
 locket==0.2.0
-lxml==3.7.3
+lxml==4.9.1
 Markdown==2.6.11
 MarkupSafe==0.23
 matplotlib==1.5.3
