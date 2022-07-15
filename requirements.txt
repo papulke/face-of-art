@@ -38,7 +38,7 @@ cyvlfeat==0.4.6
 dask==0.14.3
 datashape==0.5.4
 decorator==4.0.11
-distributed==1.16.3
+distributed==2021.10.0
 docutils==0.13.1
 entrypoints==0.2.2
 enum34==1.1.6
