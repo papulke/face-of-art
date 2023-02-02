@@ -175,7 +175,7 @@ tornado==4.5.1
 traitlets==4.3.2
 unicodecsv==0.14.1
 wcwidth==0.1.7
-Werkzeug==0.14.1
+Werkzeug==0.15.5
 widgetsnbextension==2.0.0
 wrapt==1.10.10
 xlrd==1.0.0
